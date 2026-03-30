@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offers & Coupons — RestroQR Admin</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+Auth.guard();
+let editCpnId = null;
+
+function render() {
+  const coupons = DB.get('coupons');
+  const today = new Date().toISOString().split('T')[0];
+
+  const content = `
+    <div class="section-header">
+      <span class="section-title">Offers & Coupons</span>
+      <button class="btn btn-primary" onclick="openAdd()">+ Create Coupon</button>
+    </div>
+
+    <div class="stat-grid" style="margin-bottom:20px;">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#e8f5e9;">🎟️</div>
+        <div class="stat-info"><div class="stat-label">Total Coupons</div><div class="stat-value" style="color:var(--primary)">${coupons.length}</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#e3f2fd;">✅</div>
+        <div class="stat-info"><div class="stat-label">Active</div><div class="stat-value" style="color:var(--success)">${coupons.filter(c=>c.active && c.expiry>=today).length}</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#ffebee;">⏰</div>
+        <div class="stat-info"><div class="stat-label">Expired</div><div class="stat-value" style="color:var(--danger)">${coupons.filter(c=>c.expiry<today).length}</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#fff8e1;">🔢</div>
+        <div class="stat-info"><div class="stat-label">Total Uses</div><div class="stat-value" style="color:var(--gold)">${coupons.reduce((s,c)=>s+c.usageCount,0)}</div></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+      ${coupons.map(c => {
+        const expired = c.expiry < today;
+        return `
+        <div class="coupon-card" style="opacity:${(!c.active||expired)?'.65':'1'};">
+          <div>
+            <div class="coupon-code">${c.code}</div>
+            <div style="font-size:.82rem;color:var(--text-muted);margin-top:3px;">
+              ${c.type==='percent' ? `${c.discount}% OFF` : `₹${c.discount} flat off`}
+            </div>
+            <div style="font-size:.78rem;color:var(--text-muted);margin-top:2px;">
+              Expires: ${fmtDateOnly(c.expiry)} · Used: ${c.usageCount} times
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <button class="toggle ${c.active?'on':''}" onclick="toggleCoupon('${c.id}', this)"></button>
+              <span style="font-size:.75rem;font-weight:600;color:var(--text-muted);">${c.active?'Active':'Off'}</span>
+            </div>
+            ${expired ? '<span class="badge badge-danger">Expired</span>' : ''}
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-sm btn-info" onclick="openEdit('${c.id}')">✏️</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoupon('${c.id}')">🗑️</button>
+            </div>
+          </div>
+        </div>`}).join('')}
+    </div>
+
+    <div class="modal-overlay" id="cpnModal">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title" id="cpnModalTitle">Create Coupon</span>
+          <button class="modal-close" onclick="closeModal('cpnModal')">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Coupon Code *</label>
+            <input class="form-control" id="cpCode" placeholder="e.g. SUMMER20" style="text-transform:uppercase;"
+              oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Discount Type</label>
+              <select class="form-control" id="cpType">
+                <option value="percent">Percentage (%)</option>
+                <option value="flat">Flat Amount (₹)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Discount Value *</label>
+              <input class="form-control" id="cpVal" type="number" min="1" placeholder="e.g. 20">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:14px">
+            <label class="form-label">Expiry Date *</label>
+            <input class="form-control" id="cpExpiry" type="date" min="${today}">
+          </div>
+          <div class="toggle-wrap" style="margin-top:6px;">
+            <button class="toggle on" id="cpActive" onclick="this.classList.toggle('on')"></button>
+            <span class="toggle-label">Active on creation</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('cpnModal')">Cancel</button>
+          <button class="btn btn-primary" onclick="saveCoupon()">💾 Save Coupon</button>
+        </div>
+      </div>
+    </div>`;
+
+  buildPage('offers','Offers & Coupons',content);
+}
+
+function openAdd() {
+  editCpnId = null;
+  document.getElementById('cpnModalTitle').textContent = 'Create Coupon';
+  ['cpCode','cpVal','cpExpiry'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('cpType').value='percent';
+  document.getElementById('cpActive').classList.add('on');
+  openModal('cpnModal');
+}
+function openEdit(id) {
+  const c = DB.get('coupons').find(c=>c.id===id);
+  if (!c) return;
+  editCpnId = id;
+  document.getElementById('cpnModalTitle').textContent = 'Edit Coupon';
+  document.getElementById('cpCode').value = c.code;
+  document.getElementById('cpType').value = c.type;
+  document.getElementById('cpVal').value = c.discount;
+  document.getElementById('cpExpiry').value = c.expiry;
+  const btn = document.getElementById('cpActive');
+  c.active ? btn.classList.add('on') : btn.classList.remove('on');
+  openModal('cpnModal');
+}
+function saveCoupon() {
+  const code = document.getElementById('cpCode').value.trim().toUpperCase();
+  const type = document.getElementById('cpType').value;
+  const discount = parseFloat(document.getElementById('cpVal').value);
+  const expiry = document.getElementById('cpExpiry').value;
+  const active = document.getElementById('cpActive').classList.contains('on');
+  if (!code || !discount || !expiry) { showToast('Fill all fields','error'); return; }
+  const coupons = DB.get('coupons');
+  if (editCpnId) {
+    const idx = coupons.findIndex(c=>c.id===editCpnId);
+    coupons[idx] = {...coupons[idx], code, type, discount, expiry, active};
+    showToast('Coupon updated!','success');
+  } else {
+    coupons.push({ id:'cp'+uid(), code, type, discount, expiry, active, usageCount:0 });
+    showToast('Coupon created!','success');
+  }
+  DB.set('coupons',coupons);
+  closeModal('cpnModal');
+  render();
+}
+function toggleCoupon(id, btn) {
+  const coupons = DB.get('coupons');
+  const idx = coupons.findIndex(c=>c.id===id);
+  coupons[idx].active = !coupons[idx].active;
+  DB.set('coupons',coupons);
+  btn.classList.toggle('on');
+  showToast('Coupon '+(coupons[idx].active?'activated':'deactivated'),'info');
+}
+function deleteCoupon(id) {
+  confirmDialog('Delete this coupon?', () => {
+    DB.set('coupons', DB.get('coupons').filter(c=>c.id!==id));
+    showToast('Deleted','warn');
+    render();
+  });
+}
+render();
+</script>
+</body>
+</html>

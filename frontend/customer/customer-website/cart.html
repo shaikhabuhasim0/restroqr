@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cart — La Bella Casa</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="table-banner" id="tableBanner">Loading...</div>
+
+<nav class="top-nav">
+  <a class="nav-logo" href="/index.html">🍷 <span>La Bella</span> Casa</a>
+  <div class="nav-links">
+    <a href="/index.html" class="hide-mobile">Home</a>
+    <a href="/menu.html" class="hide-mobile">Menu</a>
+    <a href="/status.html" class="hide-mobile">My Order</a>
+    <a href="/cart.html" class="cart-nav-btn btn active">🛒 Cart <span class="cart-count">0</span></a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <h1>Your Cart</h1>
+  <p>Review your order before placing it</p>
+  <div class="gold-divider"></div>
+</div>
+
+<div class="container cart-wrapper">
+
+  <!-- Empty Cart -->
+  <div id="cartEmpty" class="cart-empty hidden">
+    <div class="empty-icon">🛒</div>
+    <h3>Your cart is empty</h3>
+    <p style="color:var(--text-light);margin-bottom:20px;">Looks like you haven't added anything yet.</p>
+    <a href="/menu.html" class="btn btn-primary">← Browse Menu</a>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 360px;gap:28px;align-items:start;" id="cartMainGrid">
+
+    <!-- Cart Items -->
+    <div>
+      <div id="cartList"></div>
+
+      <!-- Cart Actions -->
+      <div id="cartActions" class="cart-actions hidden">
+        <button id="continueShoppingBtn" class="btn btn-outline">← Continue Shopping</button>
+        <button id="clearCartBtn" class="btn btn-danger btn-sm">🗑️ Clear Cart</button>
+      </div>
+    </div>
+
+    <!-- Summary + Checkout -->
+    <div>
+      <div id="cartSummary" class="cart-summary hidden">
+        <h3>Order Summary</h3>
+        <div class="summary-row">
+          <span>Subtotal</span>
+          <span class="subtotal-val">₹0</span>
+        </div>
+        <div class="summary-row">
+          <span>GST (5%)</span>
+          <span class="gst-val">₹0</span>
+        </div>
+        <div class="summary-row">
+          <span>Service Charge (2%)</span>
+          <span class="service-val">₹0</span>
+        </div>
+        <div class="summary-row total">
+          <span>Total Payable</span>
+          <span class="total-val total-amount">₹0</span>
+        </div>
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
+          <button id="checkoutBtn" class="btn btn-gold btn-full btn-lg">Proceed to Checkout →</button>
+          <a href="/menu.html" class="btn btn-outline btn-full" id="continueShoppingBtn2">+ Add More Items</a>
+        </div>
+      </div>
+
+      <!-- Waiter section in cart -->
+      <div class="waiter-section" style="margin-top:20px;">
+        <h4>🙋 Quick Requests</h4>
+        <div class="waiter-btns">
+          <button class="waiter-btn" data-action="call_waiter" data-label="Call Waiter" data-icon="🔔">🔔 Call Waiter</button>
+          <button class="waiter-btn" data-action="request_water" data-label="Request Water" data-icon="💧">💧 Request Water</button>
+          <button class="waiter-btn" data-action="request_bill" data-label="Request Bill" data-icon="🧾">🧾 Request Bill</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="footer">
+  <strong>La Bella Casa</strong> — Fine Dining Experience
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/cart.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    function checkLayout() {
+      const grid = document.getElementById('cartMainGrid');
+      if (grid) {
+        grid.style.gridTemplateColumns = window.innerWidth < 768 ? '1fr' : '1fr 360px';
+      }
+    }
+    checkLayout();
+    window.addEventListener('resize', checkLayout);
+
+    document.querySelectorAll('.waiter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        const table = getTableNumber() || '?';
+        const requests = JSON.parse(localStorage.getItem('waiterRequests') || '[]');
+        requests.push({ action, table, time: new Date().toISOString() });
+        localStorage.setItem('waiterRequests', JSON.stringify(requests));
+        btn.innerHTML = '✅ Sent!';
+        btn.classList.add('sent');
+        btn.disabled = true;
+        showToast(`✅ ${btn.dataset.label} sent!`);
+        setTimeout(() => {
+          btn.innerHTML = btn.dataset.icon + ' ' + btn.dataset.label;
+          btn.classList.remove('sent');
+          btn.disabled = false;
+        }, 8000);
+      });
+    });
+
+    const btn2 = document.getElementById('continueShoppingBtn2');
+    if (btn2) {
+      btn2.addEventListener('click', e => {
+        e.preventDefault();
+        const table = getTableNumber();
+        window.location.href = '/menu.html' + (table ? '?table=' + table : '');
+      });
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback — La Bella Casa</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="table-banner" id="tableBanner">Loading...</div>
+
+<nav class="top-nav">
+  <a class="nav-logo" href="index.html">🍷 <span>La Bella</span> Casa</a>
+  <div class="nav-links">
+    <a href="index.html" class="hide-mobile">Home</a>
+    <a href="menu.html" class="hide-mobile">Menu</a>
+    <a href="status.html" class="hide-mobile">My Order</a>
+    <a href="cart.html" class="cart-nav-btn btn">🛒 Cart <span class="cart-count">0</span></a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <h1>Share Your Experience</h1>
+  <p>Your feedback helps us serve you better</p>
+  <div class="gold-divider"></div>
+</div>
+
+<div class="container" style="padding:40px 18px;">
+  <div style="max-width:520px;margin:0 auto;">
+
+    <!-- Feedback Form -->
+    <div class="form-box" id="feedbackFormBox">
+      <form id="feedbackForm">
+        <h3 style="margin-bottom:6px;">How was your experience?</h3>
+        <p style="color:var(--text-light);font-size:0.88rem;margin-bottom:20px;">We value every bit of your honest feedback.</p>
+
+        <!-- Star Rating -->
+        <div class="form-group">
+          <label>Your Rating *</label>
+          <div class="star-rating" id="starRating">
+            <span class="star" data-val="1">★</span>
+            <span class="star" data-val="2">★</span>
+            <span class="star" data-val="3">★</span>
+            <span class="star" data-val="4">★</span>
+            <span class="star" data-val="5">★</span>
+          </div>
+          <p id="ratingLabel" style="font-size:0.85rem;color:var(--gold);font-weight:700;min-height:1.2em;margin-top:4px;"></p>
+        </div>
+
+        <!-- Category Ratings -->
+        <div class="form-group">
+          <label>Food Quality</label>
+          <div class="star-rating mini-stars" id="foodStars">
+            <span class="star" style="font-size:1.5rem;" data-group="food">★</span>
+            <span class="star" style="font-size:1.5rem;" data-group="food">★</span>
+            <span class="star" style="font-size:1.5rem;" data-group="food">★</span>
+            <span class="star" style="font-size:1.5rem;" data-group="food">★</span>
+            <span class="star" style="font-size:1.5rem;" data-group="food">★</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Service</label>
+          <div class="star-rating mini-stars" id="serviceStars">
+            <span class="star" style="font-size:1.5rem;" data-group="service">★</span>
+            <span class="star" style="font-size:1.5rem;" data-group="service">★</span>
+            <span class="star" style="font-size:1.5rem;" data-group="service">★</span>
+            <span class="star" style="font-size:1.5rem;" data-group="service">★</span>
+            <span class="star" style="font-size:1.5rem;" data-group="service">★</span>
+          </div>
+        </div>
+
+        <!-- Text Feedback -->
+        <div class="form-group">
+          <label for="feedbackText">Tell us more</label>
+          <textarea id="feedbackText" class="form-textarea" placeholder="What did you love? What can we improve? Any special mentions?" style="min-height:110px;"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-gold btn-full btn-lg">
+          ⭐ Submit Feedback
+        </button>
+      </form>
+    </div>
+
+    <!-- Thank You Message (hidden initially) -->
+    <div id="thankYouMsg" class="hidden text-center" style="padding:48px 24px;">
+      <div style="font-size:4rem;margin-bottom:20px;animation:popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275);">🙏</div>
+      <h2 style="font-family:'Playfair Display',serif;color:var(--maroon);margin-bottom:12px;">Thank You!</h2>
+      <p style="color:var(--text-light);margin-bottom:28px;">Your feedback means a lot to us. We'll keep improving to make your next visit even better.</p>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <a href="menu.html" class="btn btn-primary btn-full">🍕 Order Again</a>
+        <a href="index.html" class="btn btn-outline btn-full">🏠 Back to Home</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="footer">
+  <strong>La Bella Casa</strong> — Fine Dining Experience
+</footer>
+
+<script src="js/main.js"></script>
+<script src="js/feedback.js"></script>
+<script>
+  // Mini star groups
+  document.addEventListener('DOMContentLoaded', () => {
+    ['foodStars', 'serviceStars'].forEach(groupId => {
+      const container = document.getElementById(groupId);
+      if (!container) return;
+      let sel = 0;
+      const stars = container.querySelectorAll('.star');
+      stars.forEach((star, i) => {
+        star.addEventListener('mouseenter', () => stars.forEach((s,j) => s.classList.toggle('active', j<=i)));
+        star.addEventListener('mouseleave', () => stars.forEach((s,j) => s.classList.toggle('active', j<sel)));
+        star.addEventListener('click', () => { sel = i+1; stars.forEach((s,j) => s.classList.toggle('active', j<sel)); });
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

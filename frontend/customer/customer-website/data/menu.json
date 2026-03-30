@@ -1,0 +1,172 @@
+[
+  {
+    "id": 1,
+    "name": "Margherita Pizza",
+    "price": 320,
+    "image": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400&q=80",
+    "description": "Classic tomato sauce, fresh mozzarella, and fragrant basil on a crispy crust.",
+    "category": "Pizza",
+    "veg_or_nonveg": "veg",
+    "available": true
+  },
+  {
+    "id": 2,
+    "name": "Pepperoni Pizza",
+    "price": 420,
+    "image": "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&q=80",
+    "description": "Loaded with spicy pepperoni, mozzarella, and tangy tomato sauce.",
+    "category": "Pizza",
+    "veg_or_nonveg": "nonveg",
+    "available": true
+  },
+  {
+    "id": 3,
+    "name": "BBQ Chicken Pizza",
+    "price": 450,
+    "image": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&q=80",
+    "description": "Smoky BBQ sauce, grilled chicken, onions, and bell peppers.",
+    "category": "Pizza",
+    "veg_or_nonveg": "nonveg",
+    "available": false
+  },
+  {
+    "id": 4,
+    "name": "Classic Veg Burger",
+    "price": 180,
+    "image": "https://images.unsplash.com/photo-1550547660-d9450f859349?w=400&q=80",
+    "description": "Crispy veggie patty with lettuce, tomato, cheese, and our special sauce.",
+    "category": "Burger",
+    "veg_or_nonveg": "veg",
+    "available": true
+  },
+  {
+    "id": 5,
+    "name": "Chicken Zinger Burger",
+    "price": 250,
+    "image": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80",
+    "description": "Crispy spiced chicken fillet, coleslaw, and chipotle mayo in a brioche bun.",
+    "category": "Burger",
+    "veg_or_nonveg": "nonveg",
+    "available": true
+  },
+  {
+    "id": 6,
+    "name": "Double Beef Smash Burger",
+    "price": 320,
+    "image": "https://images.unsplash.com/photo-1553979459-d2229ba7433b?w=400&q=80",
+    "description": "Double smashed beef patties, American cheese, pickles, and secret sauce.",
+    "category": "Burger",
+    "veg_or_nonveg": "nonveg",
+    "available": true
+  },
+  {
+    "id": 7,
+    "name": "Creamy Alfredo Pasta",
+    "price": 290,
+    "image": "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=400&q=80",
+    "description": "Fettuccine in rich cream sauce with parmesan and a hint of garlic.",
+    "category": "Pasta",
+    "veg_or_nonveg": "veg",
+    "available": true
+  },
+  {
+    "id": 8,
+    "name": "Chicken Arrabbiata",
+    "price": 340,
+    "image": "https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=400&q=80",
+    "description": "Penne in spicy tomato sauce with grilled chicken and fresh herbs.",
+    "category": "Pasta",
+    "veg_or_nonveg": "nonveg",
+    "available": true
+  },
+  {
+    "id": 9,
+    "name": "Pesto Veggie Pasta",
+    "price": 270,
+    "image": "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=400&q=80",
+    "description": "Fusilli tossed in homemade basil pesto with cherry tomatoes and olives.",
+    "category": "Pasta",
+    "veg_or_nonveg": "veg",
+    "available": false
+  },
+  {
+    "id": 10,
+    "name": "Fresh Lime Soda",
+    "price": 80,
+    "image": "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&q=80",
+    "description": "Refreshing lime juice with sparkling water, sugar, and a pinch of salt.",
+    "category": "Drinks",
+    "veg_or_nonveg": "veg",
+    "available": true
+  },
+  {
+    "id": 11,
+    "name": "Mango Lassi",
+    "price": 120,
+    "image": "https://images.unsplash.com/photo-1553361371-9b22f78e8b1d?w=400&q=80",
+    "description": "Thick creamy yogurt blended with Alphonso mango pulp and cardamom.",
+    "category": "Drinks",
+    "veg_or_nonveg": "veg",
+    "available": true
+  },
+  {
+    "id": 12,
+    "name": "Cold Coffee",
+    "price": 150,
+    "image": "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&q=80",
+    "description": "Chilled espresso blended with milk, ice cream, and a drizzle of chocolate.",
+    "category": "Drinks",
+    "veg_or_nonveg": "veg",
+    "available": true
+  },
+  {
+    "id": 13,
+    "name": "Chocolate Lava Cake",
+    "price": 200,
+    "image": "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=400&q=80",
+    "description": "Warm dark chocolate cake with a gooey molten centre, served with vanilla ice cream.",
+    "category": "Dessert",
+    "veg_or_nonveg": "veg",
+    "available": true
+  },
+  {
+    "id": 14,
+    "name": "New York Cheesecake",
+    "price": 220,
+    "image": "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&q=80",
+    "description": "Classic baked cheesecake with a buttery graham cracker crust and berry compote.",
+    "category": "Dessert",
+    "veg_or_nonveg": "veg",
+    "available": true
+  },
+  {
+    "id": 15,
+    "name": "Tiramisu",
+    "price": 240,
+    "image": "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&q=80",
+    "description": "Italian classic with espresso-soaked ladyfingers, mascarpone cream, and cocoa.",
+    "category": "Dessert",
+    "veg_or_nonveg": "veg",
+    "available": false
+  },
+  {
+    "id": 16,
+    "name": "Paneer Tikka Pizza",
+    "price": 380,
+    "image": "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80",
+    "description": "Indian-Italian fusion with spiced paneer, capsicum, onion, and tandoori sauce.",
+    "category": "Pizza",
+    "veg_or_nonveg": "veg",
+    "available": true
+  },
+  {
+    "id": 17,
+    "name": "Strawberry Milkshake",
+    "price": 160,
+    "image": "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=400&q=80",
+    "description": "Fresh strawberries blended with milk and ice cream, topped with whipped cream.",
+    "category": "Drinks",
+    "veg_or_nonveg": "veg",
+    "available": true
+  }
+]

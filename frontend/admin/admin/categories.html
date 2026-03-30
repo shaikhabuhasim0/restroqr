@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Categories — RestroQR Admin</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+Auth.guard();
+let editCatId = null;
+const ICONS = ['🥗','🍛','🫓','🥤','🍮','🍚','🍔','🍕','🍜','🥩','🦐','🧆','🧇','🥞','🍰','☕','🍷','🧃','🥘','🫕'];
+const COLORS = ['#e8f5e9','#fff3e0','#fce4ec','#e3f2fd','#f3e5f5','#fffde7','#fbe9e7','#e0f2f1','#e8eaf6','#f9fbe7'];
+
+function render() {
+  const cats = DB.get('categories');
+  const menu = DB.get('menu');
+  const countMap = Object.fromEntries(cats.map(c => [c.id, menu.filter(m => m.category === c.id).length]));
+
+  const content = `
+    <div class="section-header">
+      <span class="section-title">Category Management</span>
+      <button class="btn btn-primary" onclick="openAdd()">+ Add Category</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;">
+      ${cats.map(c => `
+        <div class="card" style="text-align:center;border-top:4px solid ${c.color||'#eee'};">
+          <div style="font-size:2.5rem;margin-bottom:8px;">${c.icon||'🍽️'}</div>
+          <div style="font-weight:700;font-size:1rem;margin-bottom:4px;">${c.name}</div>
+          <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:14px;">${countMap[c.id]||0} item${countMap[c.id]!==1?'s':''}</div>
+          <div style="display:flex;gap:8px;justify-content:center;">
+            <button class="btn btn-sm btn-info" onclick="openEdit('${c.id}')">✏️ Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteCat('${c.id}')">🗑️ Delete</button>
+          </div>
+        </div>`).join('')}
+    </div>
+
+    <div class="modal-overlay" id="catModal">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title" id="catModalTitle">Add Category</span>
+          <button class="modal-close" onclick="closeModal('catModal')">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Category Name *</label>
+            <input class="form-control" id="cName" placeholder="e.g. Starters">
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Icon</label>
+              <select class="form-control" id="cIcon">
+                ${ICONS.map(ic => `<option value="${ic}">${ic} ${ic}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Color</label>
+              <select class="form-control" id="cColor">
+                ${COLORS.map((col,i) => `<option value="${col}" style="background:${col}">Color ${i+1}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('catModal')">Cancel</button>
+          <button class="btn btn-primary" onclick="saveCat()">💾 Save</button>
+        </div>
+      </div>
+    </div>`;
+  buildPage('categories','Categories',content);
+}
+
+function openAdd() {
+  editCatId = null;
+  document.getElementById('catModalTitle').textContent = 'Add Category';
+  document.getElementById('cName').value = '';
+  openModal('catModal');
+}
+function openEdit(id) {
+  const c = DB.get('categories').find(c => c.id===id);
+  if (!c) return;
+  editCatId = id;
+  document.getElementById('catModalTitle').textContent = 'Edit Category';
+  document.getElementById('cName').value = c.name;
+  document.getElementById('cIcon').value = c.icon||ICONS[0];
+  document.getElementById('cColor').value = c.color||COLORS[0];
+  openModal('catModal');
+}
+function saveCat() {
+  const name = document.getElementById('cName').value.trim();
+  const icon = document.getElementById('cIcon').value;
+  const color = document.getElementById('cColor').value;
+  if (!name) { showToast('Name required','error'); return; }
+  const cats = DB.get('categories');
+  if (editCatId) {
+    const idx = cats.findIndex(c=>c.id===editCatId);
+    cats[idx] = {...cats[idx], name, icon, color};
+    showToast('Category updated!','success');
+  } else {
+    cats.push({ id:'cat'+uid(), name, icon, color });
+    showToast('Category added!','success');
+  }
+  DB.set('categories',cats);
+  closeModal('catModal');
+  render();
+}
+function deleteCat(id) {
+  const menuCount = DB.get('menu').filter(m=>m.category===id).length;
+  if (menuCount > 0) { showToast(`Cannot delete — ${menuCount} menu items use this category`,'error'); return; }
+  confirmDialog('Delete this category?', () => {
+    DB.set('categories', DB.get('categories').filter(c=>c.id!==id));
+    showToast('Deleted','warn');
+    render();
+  });
+}
+render();
+</script>
+</body>
+</html>

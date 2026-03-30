@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout — La Bella Casa</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!-- Spinner Overlay -->
+<div id="orderSpinner" class="spinner-overlay hidden">
+  <div class="spinner"></div>
+  <p class="spinner-text">Placing your order...</p>
+</div>
+
+<div class="table-banner" id="tableBanner">Loading...</div>
+
+<nav class="top-nav">
+  <a class="nav-logo" href="/index.html">🍷 <span>La Bella</span> Casa</a>
+  <div class="nav-links">
+    <a href="/menu.html" class="hide-mobile">Menu</a>
+    <a href="/cart.html" class="hide-mobile">Cart</a>
+    <a href="/cart.html" class="cart-nav-btn btn">🛒 Cart <span class="cart-count">0</span></a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <h1>Checkout</h1>
+  <p>Almost there — fill in your details and confirm your order</p>
+  <div class="gold-divider"></div>
+</div>
+
+<div class="container">
+  <div class="checkout-grid">
+
+    <!-- Left: Customer Form -->
+    <div>
+      <form id="checkoutForm">
+        <div class="form-box">
+          <h3>👤 Your Details</h3>
+          <div class="form-group">
+            <label for="customerName">Full Name *</label>
+            <input type="text" id="customerName" class="form-input" placeholder="e.g. Ravi Sharma" required>
+          </div>
+          <div class="form-group">
+            <label for="customerPhone">Phone Number *</label>
+            <input type="tel" id="customerPhone" class="form-input" placeholder="e.g. 9876543210" maxlength="10" required>
+          </div>
+          <div class="form-group">
+            <label for="checkoutTable">Table Number</label>
+            <input type="text" id="checkoutTable" class="form-input" readonly>
+          </div>
+          <div class="form-group">
+            <label for="orderNotes">Special Instructions (optional)</label>
+            <textarea id="orderNotes" class="form-textarea" placeholder="e.g. No onions, extra spicy, allergies..."></textarea>
+          </div>
+          <button type="submit" id="placeOrderBtn" class="btn btn-gold btn-full btn-lg" style="margin-top:8px;">
+            🍽️ Place Order
+          </button>
+        </div>
+      </form>
+
+      <!-- Waiter Section -->
+      <div class="waiter-section">
+        <h4>🙋 Need Anything?</h4>
+        <div class="waiter-btns">
+          <button class="waiter-btn" data-action="call_waiter" data-label="Call Waiter" data-icon="🔔">🔔 Call Waiter</button>
+          <button class="waiter-btn" data-action="request_water" data-label="Request Water" data-icon="💧">💧 Request Water</button>
+          <button class="waiter-btn" data-action="request_bill" data-label="Request Bill" data-icon="🧾">🧾 Request Bill</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Order Summary -->
+    <div>
+      <div class="form-box">
+        <h3>📋 Order Summary</h3>
+        <div id="checkoutItemsList" style="margin-bottom:16px;"></div>
+        <div style="border-top:2px dashed var(--cream-dark);padding-top:14px;">
+          <div class="summary-row"><span>Subtotal</span><span id="co-subtotal">₹0</span></div>
+          <div class="summary-row"><span>GST (5%)</span><span id="co-gst">₹0</span></div>
+          <div class="summary-row"><span>Service Charge (2%)</span><span id="co-service">₹0</span></div>
+          <div class="summary-row total">
+            <span>Total Payable</span>
+            <span id="co-total" class="total-amount">₹0</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;text-align:center;">
+        <a href="/cart.html" style="color:var(--text-light);font-size:0.85rem;">← Back to Cart</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="footer">
+  <strong>La Bella Casa</strong> — Fine Dining Experience
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/checkout.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REVA RESTAURENT — Fine Dining</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .table-banner {
+      background: linear-gradient(135deg, var(--maroon), #8B1A1A);
+      color: var(--gold, #D4AF37);
+      text-align: center;
+      padding: 12px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .table-banner .table-chip {
+      background: var(--gold, #D4AF37);
+      color: #fff;
+      border-radius: 20px;
+      padding: 3px 14px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Table Banner -->
+<div class="table-banner" id="tableBanner">Loading...</div>
+
+<!-- Navigation -->
+<nav class="top-nav">
+  <a class="nav-logo" href="/index.html">
+    🍷 <span>REVA RESTAURENT</span>
+  </a>
+  <div class="nav-links">
+    <a href="/index.html" class="active hide-mobile">Home</a>
+    <a href="/menu.html" class="hide-mobile">Menu</a>
+    <a href="/status.html" class="hide-mobile">My Order</a>
+    <a href="/cart.html" class="cart-nav-btn btn">
+      🛒 Cart <span class="cart-count">0</span>
+    </a>
+  </div>
+</nav>
+
+<!-- Hero Section -->
+<section class="hero">
+  <div class="hero-content">
+    <p class="hero-eyebrow">✦ Welcome to Your Table ✦</p>
+    <h1>Experience <em>Fine Dining</em><br>From Your Seat</h1>
+    <p>Browse our curated menu, place your order, and let us take care of the rest. No waiting, no fuss — just great food.</p>
+    <div class="hero-actions">
+      <a href="/menu.html" class="btn btn-gold btn-lg">📖 Browse Menu</a>
+      <a href="/status.html" class="btn btn-outline btn-lg" style="border-color:var(--gold-light);color:var(--gold-light);">📋 Track Order</a>
+    </div>
+  </div>
+</section>
+
+<!-- Feature Strip -->
+<div class="feature-strip">
+  <div class="container">
+    <div class="features-grid">
+      <div class="feature-item">
+        <div class="feature-icon">🍽️</div>
+        <h4>Order at Table</h4>
+        <p>Scan QR and order directly from your seat</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">⚡</div>
+        <h4>Quick Service</h4>
+        <p>Real-time order tracking in the kitchen</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🥗</div>
+        <h4>Fresh Ingredients</h4>
+        <p>Sourced daily from local farms and markets</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🔔</div>
+        <h4>Call Waiter</h4>
+        <p>Request assistance with a single tap</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Links -->
+<section style="background:var(--cream-dark);padding:40px 0;">
+  <div class="container text-center">
+    <h2 style="color:var(--maroon);margin-bottom:8px;font-family:'Playfair Display',serif;">Ready to Order?</h2>
+    <p style="color:var(--text-light);margin-bottom:28px;">Explore our full menu or jump straight to checkout.</p>
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+      <a href="/menu.html" class="btn btn-primary btn-lg">🍕 See Full Menu</a>
+      <a href="/feedback.html" class="btn btn-outline btn-lg">⭐ Leave Feedback</a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <strong>REVA RESTAURENT</strong> — Fine Dining Experience &nbsp;|&nbsp; Table ordering powered by QR technology
+</footer>
+
+<script src="/js/main.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const table = getTableNumber();
+    const banner = document.getElementById('tableBanner');
+    if (!banner) return;
+    if (table) {
+      banner.innerHTML = `
+        🪑 You are seated at &nbsp;<span class="table-chip">Table ${table}</span>&nbsp; — Welcome to <strong style="color:#fff">REVA RESTAURENT</strong>
+      `;
+    } else {
+      banner.innerHTML = `⚠️ Table number not detected. Please scan the QR code on your table.`;
+    }
+  });
+</script>
+
+</body>
+</html>

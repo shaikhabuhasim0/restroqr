@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Menu — REVA RESTAURENT</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="table-banner" id="tableBanner">Loading...</div>
+
+<nav class="top-nav">
+  <a class="nav-logo" href="/index.html">🍷 <span>REVA RESTAURENT</span> </a>
+  <div class="nav-links">
+    <a href="/index.html" class="hide-mobile">Home</a>
+    <a href="/menu.html" class="active hide-mobile">Menu</a>
+    <a href="/status.html" class="hide-mobile">My Order</a>
+    <a href="/cart.html" class="cart-nav-btn btn">🛒 Cart <span class="cart-count">0</span></a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <h1>Our Menu</h1>
+  <p>Fresh, flavourful, and made with love</p>
+  <div class="gold-divider"></div>
+</div>
+
+<div class="container">
+  <!-- Search -->
+  <div style="padding-top:24px;">
+    <div class="search-bar-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="menuSearch" class="search-bar" placeholder="Search dishes, drinks, desserts...">
+    </div>
+  </div>
+
+  <!-- Category Filter -->
+  <div id="categoryBar" class="category-bar"></div>
+
+  <!-- Waiter Section -->
+  <div class="waiter-section">
+    <h4>🙋 Need Assistance?</h4>
+    <div class="waiter-btns">
+      <button class="waiter-btn" data-action="call_waiter" data-label="Call Waiter" data-icon="🔔">
+        🔔 Call Waiter
+      </button>
+      <button class="waiter-btn" data-action="request_water" data-label="Request Water" data-icon="💧">
+        💧 Request Water
+      </button>
+      <button class="waiter-btn" data-action="request_bill" data-label="Request Bill" data-icon="🧾">
+        🧾 Request Bill
+      </button>
+    </div>
+  </div>
+
+  <!-- Menu Grid -->
+  <div id="menuGrid" class="menu-grid"></div>
+</div>
+
+<!-- Sticky Cart Bar -->
+<div id="stickyCartBar" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--maroon);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;z-index:50;box-shadow:0 -4px 20px rgba(0,0,0,0.2);">
+  <span style="color:var(--cream);font-size:0.9rem;">
+    🛒 <span id="stickyCartCount">0</span> items &mdash; <span id="stickyCartTotal" style="color:var(--gold);font-weight:700;"></span>
+  </span>
+  <a href="/cart.html" class="btn btn-gold btn-sm">View Cart →</a>
+</div>
+
+<footer class="footer">
+  <strong>La Bella Casa</strong> — Fine Dining Experience
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/menu.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    if (typeof menuInit === "function") {
+      menuInit();
+    } else {
+      console.log("menuInit function nahi mili");
+    }
+
+    updateStickyBar();
+
+    const origAdd = addToCart;
+    window.addToCart = function(item) {
+      origAdd(item);
+      updateStickyBar();
+    };
+
+    document.querySelectorAll('.waiter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        const table = getTableNumber() || '?';
+        const requests = JSON.parse(localStorage.getItem('waiterRequests') || '[]');
+        requests.push({ action, table, time: new Date().toISOString() });
+        localStorage.setItem('waiterRequests', JSON.stringify(requests));
+        const label = btn.dataset.label;
+        btn.innerHTML = '✅ Sent!';
+        btn.classList.add('sent');
+        btn.disabled = true;
+        showToast(`✅ ${label} request sent!`);
+        setTimeout(() => {
+          btn.innerHTML = btn.dataset.icon + ' ' + label;
+          btn.classList.remove('sent');
+          btn.disabled = false;
+        }, 8000);
+      });
+    });
+  });
+
+  function updateStickyBar() {
+    const cart = getCart();
+    const count = cart.reduce((s,i)=>s+i.quantity,0);
+    const stickyBar = document.getElementById('stickyCartBar');
+    if (!stickyBar) return;
+    if (count > 0) {
+      stickyBar.style.display = 'flex';
+      document.getElementById('stickyCartCount').textContent = count;
+      const { total } = calcTotals(cart);
+      document.getElementById('stickyCartTotal').textContent = formatPrice(total);
+    } else {
+      stickyBar.style.display = 'none';
+    }
+  }
+</script>
+
+</body>
+</html>

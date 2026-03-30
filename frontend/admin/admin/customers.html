@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customers — RestroQR Admin</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+Auth.guard();
+
+function render(search='') {
+  let customers = DB.get('customers');
+  if (search) customers = customers.filter(c =>
+    c.name.toLowerCase().includes(search) ||
+    c.phone.includes(search) ||
+    c.email.toLowerCase().includes(search)
+  );
+
+  const orders = DB.get('orders');
+  const totalRevenue = customers.reduce((s,c)=>s+c.totalSpend,0);
+  const totalVisits  = customers.reduce((s,c)=>s+c.visits,0);
+
+  const content = `
+    <div class="section-header">
+      <span class="section-title">Customer Management</span>
+      <button class="btn btn-primary" onclick="openAdd()">+ Add Customer</button>
+    </div>
+
+    <div class="stat-grid" style="margin-bottom:20px;">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#f3e5f5;">👥</div>
+        <div class="stat-info"><div class="stat-label">Total Customers</div><div class="stat-value" style="color:var(--ready)">${DB.get('customers').length}</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#fdf8ed;">💰</div>
+        <div class="stat-info"><div class="stat-label">Total Revenue</div><div class="stat-value" style="color:var(--gold);font-size:1.2rem">${fmtCurrency(totalRevenue)}</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#e3f2fd;">🔁</div>
+        <div class="stat-info"><div class="stat-label">Total Visits</div><div class="stat-value" style="color:var(--info)">${totalVisits}</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#e8f5e9;">📊</div>
+        <div class="stat-info"><div class="stat-label">Avg Spend</div><div class="stat-value" style="color:var(--success);font-size:1.1rem">${customers.length?fmtCurrency(Math.round(totalRevenue/customers.length)):fmtCurrency(0)}</div></div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <input class="search-input" id="custSearch" placeholder="Search by name, phone, email…" value="${search}"
+        oninput="render(this.value)">
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Customer</th><th>Phone</th><th>Email</th><th>Total Visits</th><th>Total Spend</th><th>Avg/Visit</th><th>Joined</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            ${customers.length===0?`<tr><td colspan="8"><div class="empty-state"><span class="empty-icon">👥</span><p>No customers found</p></div></td></tr>`:
+            customers.map(c=>`
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="customer-avatar" style="width:36px;height:36px;font-size:.95rem;">${c.name.charAt(0)}</div>
+                    <strong>${c.name}</strong>
+                  </div>
+                </td>
+                <td>${c.phone}</td>
+                <td>${c.email}</td>
+                <td><span class="badge badge-info">${c.visits}</span></td>
+                <td><strong>${fmtCurrency(c.totalSpend)}</strong></td>
+                <td>${fmtCurrency(c.visits>0?Math.round(c.totalSpend/c.visits):0)}</td>
+                <td style="font-size:.8rem;color:var(--text-muted);">${fmtDateOnly(c.joined)}</td>
+                <td>
+                  <button class="btn btn-sm btn-info" onclick="viewCustomer('${c.id}')">👁️ View</button>
+                  <button class="btn btn-sm btn-danger" onclick="deleteCustomer('${c.id}')">🗑️</button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal-overlay" id="custModal">
+      <div class="modal modal-lg">
+        <div class="modal-header">
+          <span class="modal-title" id="custModalTitle">Customer Details</span>
+          <button class="modal-close" onclick="closeModal('custModal')">✕</button>
+        </div>
+        <div class="modal-body" id="custModalBody"></div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('custModal')">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Customer Modal -->
+    <div class="modal-overlay" id="addCustModal">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title">Add Customer</span>
+          <button class="modal-close" onclick="closeModal('addCustModal')">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group"><label class="form-label">Name *</label><input class="form-control" id="cstName" placeholder="Full name"></div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0"><label class="form-label">Phone *</label><input class="form-control" id="cstPhone" placeholder="10-digit number"></div>
+            <div class="form-group" style="margin-bottom:0"><label class="form-label">Email</label><input class="form-control" id="cstEmail" placeholder="email@example.com"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeModal('addCustModal')">Cancel</button>
+          <button class="btn btn-primary" onclick="saveCustomer()">💾 Save</button>
+        </div>
+      </div>
+    </div>`;
+
+  buildPage('customers','Customers',content);
+}
+
+function viewCustomer(id) {
+  const c = DB.get('customers').find(c=>c.id===id);
+  if (!c) return;
+  const custOrders = DB.get('orders').filter(o=>o.customer===c.name);
+  document.getElementById('custModalTitle').textContent = c.name;
+  document.getElementById('custModalBody').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px;">
+      <div class="stat-card" style="padding:12px;">
+        <div class="stat-icon" style="background:#e3f2fd;width:36px;height:36px;font-size:1rem;">🔁</div>
+        <div class="stat-info"><div class="stat-label">Visits</div><div class="stat-value" style="font-size:1.4rem;color:var(--info)">${c.visits}</div></div>
+      </div>
+      <div class="stat-card" style="padding:12px;">
+        <div class="stat-icon" style="background:#fdf8ed;width:36px;height:36px;font-size:1rem;">💰</div>
+        <div class="stat-info"><div class="stat-label">Total Spend</div><div class="stat-value" style="font-size:1rem;color:var(--gold)">${fmtCurrency(c.totalSpend)}</div></div>
+      </div>
+      <div class="stat-card" style="padding:12px;">
+        <div class="stat-icon" style="background:#e8f5e9;width:36px;height:36px;font-size:1rem;">📊</div>
+        <div class="stat-info"><div class="stat-label">Avg/Visit</div><div class="stat-value" style="font-size:1rem;color:var(--success)">${fmtCurrency(c.visits>0?Math.round(c.totalSpend/c.visits):0)}</div></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
+      <div><span style="font-size:.75rem;color:var(--text-muted);font-weight:700;">PHONE</span><br><strong>${c.phone}</strong></div>
+      <div><span style="font-size:.75rem;color:var(--text-muted);font-weight:700;">EMAIL</span><br><strong>${c.email}</strong></div>
+      <div><span style="font-size:.75rem;color:var(--text-muted);font-weight:700;">MEMBER SINCE</span><br>${fmtDateOnly(c.joined)}</div>
+    </div>
+    ${custOrders.length>0?`
+      <div style="font-size:.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px;">Recent Orders (${custOrders.length})</div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Order ID</th><th>Table</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>${custOrders.slice(0,5).map(o=>`<tr>
+          <td><strong>${o.id}</strong></td>
+          <td>${o.table}</td>
+          <td>${fmtCurrency(o.total)}</td>
+          <td>${statusBadge(o.status)}</td>
+          <td style="font-size:.78rem;color:var(--text-muted);">${fmtDate(o.time)}</td>
+        </tr>`).join('')}</tbody></table>
+      </div>`:'<div class="empty-state"><span class="empty-icon">🧾</span><p>No orders from this customer yet</p></div>'}`;
+  openModal('custModal');
+}
+
+function openAdd() {
+  ['cstName','cstPhone','cstEmail'].forEach(id=>document.getElementById(id).value='');
+  openModal('addCustModal');
+}
+function saveCustomer() {
+  const name = document.getElementById('cstName').value.trim();
+  const phone = document.getElementById('cstPhone').value.trim();
+  const email = document.getElementById('cstEmail').value.trim();
+  if (!name||!phone) { showToast('Name and phone required','error'); return; }
+  const customers = DB.get('customers');
+  customers.push({ id:'c'+uid(), name, phone, email, visits:0, totalSpend:0, joined:new Date().toISOString().split('T')[0] });
+  DB.set('customers',customers);
+  showToast('Customer added!','success');
+  closeModal('addCustModal');
+  render();
+}
+function deleteCustomer(id) {
+  confirmDialog('Delete this customer?', () => {
+    DB.set('customers', DB.get('customers').filter(c=>c.id!==id));
+    showToast('Deleted','warn');
+    render();
+  });
+}
+render();
+</script>
+</body>
+</html>
