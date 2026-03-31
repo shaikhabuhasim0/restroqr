@@ -11,9 +11,9 @@ CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "restaurant.db")
-FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
-CUSTOMER_DIR = os.path.join(BASE_DIR, "..", "frontend", "customer", "customer-website")
-ADMIN_DIR = os.path.join(FRONTEND_DIR, "admin", "admin")
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+CUSTOMER_DIR = os.path.join(BASE_DIR, "frontend", "customer", "customer-website")
+ADMIN_DIR = os.path.join(BASE_DIR, "frontend", "admin", "admin")
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -235,9 +235,9 @@ def place_order():
             )
         )
         conn.commit()
-        order_id = cursor.lastrowid  # ✅ Get real database ID
+        order_id = cursor.lastrowid
         conn.close()
-        return jsonify({"success": True, "orderId": order_id})  # ✅ Return it to frontend
+        return jsonify({"success": True, "orderId": order_id})
     except Exception as e:
         conn.close()
         print("❌ Order error:", e)
@@ -256,7 +256,7 @@ def get_orders():
             "id": row["id"],
             "table": row["table_number"],
             "items": json.loads(row["items"]),
-            "total": row["total"],  # ✅ Fixed: was row["total_amount"]
+            "total": row["total"],
             "status": row["status"],
             "time": row["created_at"]
         })
