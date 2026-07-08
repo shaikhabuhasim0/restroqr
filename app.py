@@ -8,6 +8,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
+init_db()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "restaurant.db")
@@ -273,5 +274,4 @@ def update_order_status(order_id):
     return jsonify({"success": True})
 
 if __name__ == "__main__":
-    init_db()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
