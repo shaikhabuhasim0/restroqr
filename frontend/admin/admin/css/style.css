@@ -825,3 +825,34 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   .filter-bar { flex-direction: column; align-items: stretch; }
   .search-input { min-width: unset; }
 }
+
+/*scalaton chnages for ordes section*/
+/* ===== Skeleton Loader ===== */
+
+.skeleton-card{
+    height: 330px;
+    border-radius: 16px;
+    background: #f2f2f2;
+    position: relative;
+    overflow: hidden;
+}
+
+.skeleton-card::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:linear-gradient(
+        90deg,
+        transparent,
+        rgba(255,255,255,.7),
+        transparent
+    );
+    transform:translateX(-100%);
+    animation: shimmer 1.2s infinite;
+}
+
+@keyframes shimmer{
+    100%{
+        transform:translateX(100%);
+    }
+}
