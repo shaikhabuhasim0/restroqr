@@ -2,7 +2,11 @@
 
 async function ordersInit() {
   Auth.guard();
-  await renderOrders();
+  showOrderSkeleton();   // Pehle skeleton dikhao
+
+  await renderOrders();  // API ka wait karo
+
+  // renderOrders() aate hi skeleton automatically replace ho jayega
 }
 
 /* ── Status config ─────────────────────────────────────── */
@@ -15,7 +19,18 @@ const STATUS_CONFIG = {
 };
 
 let _allOrders = [];
-
+function showOrderSkeleton() {
+    buildPage("orders", "Orders", `
+        <div class="orders-grid">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+        </div>
+    `);
+}
 async function renderOrders(filter = 'all', search = '') {
   // Flask API se orders fetch karo
   try {
