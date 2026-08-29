@@ -682,6 +682,65 @@ def save_settings():
 # bhi ye chale (pehle sirf "python app.py" se direct run karne par chalta tha)
 init_db()
 
+@app.route("/getAdminUsername", methods=["GET"])
+def get_admin_username():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT username FROM admin_users LIMIT 1")
+    row = cursor.fetchone()
+    conn.close()
+    return jsonify({"success": True, "username": row["username"] if row else ""})
+
+@app.route("/changeAdminPassword", methods=["PUT"])
+def change_admin_password():
+    data = request.get_json()
+    username = data.get("username")
+    current_password = data.get("currentPassword", "")
+    new_password = data.get("newPassword", "")
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM admin_users WHERE username=?", (username,))
+    user = cursor.fetchone()
+    if user is None:
+        conn.close()
+        return jsonify({"success": False, "message": "Admin not found"}), 404
+    stored_hash = user["password"]
+    valid = False
+    if stored_hash.startswith("$2b$"):
+        valid = bcrypt.checkpw(current_password.encode("utf-8"), stored_hash.encode("utf-8"))
+    else:
+        valid = (current_password == stored_hash)
+    if not valid:
+        conn.close()
+        return jsonify({"success": False, "message": "Current password is incorrect"}), 401
+    new_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    cursor.execute("UPDATE admin_users SET password=? WHERE username=?", (new_hash, username))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+@app.route("/changeAdminId", methods=["PUT"])
+def change_admin_id():
+    data = request.get_json()
+    old_username = data.get("oldUsername")
+    new_username = data.get("newUsername")
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM admin_users WHERE username=?", (old_username,))
+    user = cursor.fetchone()
+    if user is None:
+        conn.close()
+        return jsonify({"success": False, "message": "Admin not found"}), 404
+    try:
+        cursor.execute("UPDATE admin_users SET username=? WHERE username=?", (new_username, old_username))
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        return jsonify({"success": False, "message": str(e)}), 400
+    conn.close()
+    return jsonify({"success": True})
+
+
 if __name__ == "__main__":
     print("🔥 Server running on http://127.0.0.1:5000")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
