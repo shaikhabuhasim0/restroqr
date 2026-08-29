@@ -12,9 +12,18 @@
 <script>
 Auth.guard();
 let editCpnId = null;
+let _allCoupons = [];
 
-function render() {
-  const coupons = DB.get('coupons');
+async function render() {
+  try {
+    const res = await fetch('/getCoupons');
+    const data = await res.json();
+    _allCoupons = data.success ? data.coupons : [];
+  } catch (e) {
+    _allCoupons = [];
+  }
+
+  const coupons = _allCoupons;
   const today = new Date().toISOString().split('T')[0];
 
   const content = `
@@ -43,7 +52,8 @@ function render() {
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
-      ${coupons.map(c => {
+      ${coupons.length===0 ? `<div class="empty-state" style="grid-column:1/-1;"><span class="empty-icon">🎟️</span><p>No coupons yet</p></div>` :
+      coupons.map(c => {
         const expired = c.expiry < today;
         return `
         <div class="coupon-card" style="opacity:${(!c.active||expired)?'.65':'1'};">
@@ -111,7 +121,7 @@ function render() {
       </div>
     </div>`;
 
-  buildPage('offers','Offers & Coupons',content);
+  await buildPage('offers','Offers & Coupons',content);
 }
 
 function openAdd() {
@@ -123,7 +133,7 @@ function openAdd() {
   openModal('cpnModal');
 }
 function openEdit(id) {
-  const c = DB.get('coupons').find(c=>c.id===id);
+  const c = _allCoupons.find(c=>c.id===id);
   if (!c) return;
   editCpnId = id;
   document.getElementById('cpnModalTitle').textContent = 'Edit Coupon';
@@ -135,39 +145,71 @@ function openEdit(id) {
   c.active ? btn.classList.add('on') : btn.classList.remove('on');
   openModal('cpnModal');
 }
-function saveCoupon() {
+async function saveCoupon() {
   const code = document.getElementById('cpCode').value.trim().toUpperCase();
   const type = document.getElementById('cpType').value;
   const discount = parseFloat(document.getElementById('cpVal').value);
   const expiry = document.getElementById('cpExpiry').value;
   const active = document.getElementById('cpActive').classList.contains('on');
   if (!code || !discount || !expiry) { showToast('Fill all fields','error'); return; }
-  const coupons = DB.get('coupons');
-  if (editCpnId) {
-    const idx = coupons.findIndex(c=>c.id===editCpnId);
-    coupons[idx] = {...coupons[idx], code, type, discount, expiry, active};
-    showToast('Coupon updated!','success');
-  } else {
-    coupons.push({ id:'cp'+uid(), code, type, discount, expiry, active, usageCount:0 });
-    showToast('Coupon created!','success');
+  try {
+    if (editCpnId) {
+      const res = await fetch(`/editCoupon/${editCpnId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, type, discount, expiry, active })
+      });
+      const data = await res.json();
+      if (data.success) showToast('Coupon updated!','success');
+      else { showToast('❌ Update failed','error'); return; }
+    } else {
+      const res = await fetch('/addCoupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, type, discount, expiry, active, usageCount: 0 })
+      });
+      const data = await res.json();
+      if (data.success) showToast('Coupon created!','success');
+      else { showToast('❌ Create failed','error'); return; }
+    }
+    closeModal('cpnModal');
+    render();
+  } catch (e) {
+    showToast('❌ Something went wrong','error');
   }
-  DB.set('coupons',coupons);
-  closeModal('cpnModal');
-  render();
 }
-function toggleCoupon(id, btn) {
-  const coupons = DB.get('coupons');
-  const idx = coupons.findIndex(c=>c.id===id);
-  coupons[idx].active = !coupons[idx].active;
-  DB.set('coupons',coupons);
-  btn.classList.toggle('on');
-  showToast('Coupon '+(coupons[idx].active?'activated':'deactivated'),'info');
+async function toggleCoupon(id, btn) {
+  const c = _allCoupons.find(c=>c.id===id);
+  if (!c) return;
+  const newActive = !c.active;
+  try {
+    const res = await fetch(`/editCoupon/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: newActive })
+    });
+    const data = await res.json();
+    if (data.success) {
+      c.active = newActive;
+      btn.classList.toggle('on');
+      showToast('Coupon '+(newActive?'activated':'deactivated'),'info');
+    } else {
+      showToast('❌ Failed to update','error');
+    }
+  } catch (e) {
+    showToast('❌ Failed to update','error');
+  }
 }
 function deleteCoupon(id) {
-  confirmDialog('Delete this coupon?', () => {
-    DB.set('coupons', DB.get('coupons').filter(c=>c.id!==id));
-    showToast('Deleted','warn');
-    render();
+  confirmDialog('Delete this coupon?', async () => {
+    try {
+      const res = await fetch(`/deleteCoupon/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) { showToast('Deleted','warn'); render(); }
+      else showToast('❌ Delete failed','error');
+    } catch (e) {
+      showToast('❌ Delete failed','error');
+    }
   });
 }
 render();
