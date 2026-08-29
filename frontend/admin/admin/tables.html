@@ -15,7 +15,8 @@
 Auth.guard();
 let editTableId = null;
 
-function render() {
+// 👇 FIX #1: "async" added so we can "await" buildPage() before touching the DOM
+async function render() {
   const tables = DB.get('tables');
   const settings = DB.getOne('settings');
   const baseUrl = window.location.origin + '/menu/';
@@ -103,25 +104,31 @@ function render() {
       </div>
     </div>`;
 
-  buildPage('tables','Tables & QR',content);
-  // Generate all QRs after DOM paint
-  setTimeout(() => {
-    const tables2 = DB.get('tables');
-    const url = window.location.origin + '/menu/';
-    tables2.forEach(t => {
-      const el = document.getElementById('qr-' + t.id);
-      if (el && typeof QRCode !== 'undefined') {
-        el.innerHTML = '';
-        new QRCode(el, {
-          text: url + '?table=' + t.id,
-          width: 126, height: 126,
-          colorDark: '#1a1208',
-          colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      }
-    });
-  }, 100);
+  // 👇 FIX #2: "await" added — ab hum guarantee se rukte hain jab tak buildPage()
+  // apna DOM (document.body.innerHTML) update nahi kar deta
+  await buildPage('tables','Tables & QR',content);
+
+  // 👇 FIX #3: setTimeout hata diya — ab QR generate karne se pehle DOM
+  // hamesha ready hoga, chahe backend kitna bhi slow kyun na ho
+  const tables2 = DB.get('tables');
+  const url = window.location.origin + '/menu/';
+  tables2.forEach(t => {
+    const el = document.getElementById('qr-' + t.id);
+    if (el && typeof QRCode !== 'undefined') {
+      el.innerHTML = '';
+      new QRCode(el, {
+        text: url + '?table=' + t.id,
+        width: 126, height: 126,
+        colorDark: '#1a1208',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    } else if (!el) {
+      console.warn('QR container missing for table', t.id);
+    } else if (typeof QRCode === 'undefined') {
+      console.warn('QRCode library failed to load — check network/CDN block');
+    }
+  });
 }
 
 function openAdd() {
