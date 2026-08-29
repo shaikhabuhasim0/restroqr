@@ -353,20 +353,25 @@ def place_order():
         order_id = cursor.lastrowid
 
         # ── Auto-create/update customer record from real order data ──
+        # Isse alag try/except mein rakha hai taaki customer-tracking mein
+        # koi bhi issue ho, order place hona kabhi na ruke (order already committed upar)
         if customer_phone:
-            cursor.execute("SELECT * FROM customers WHERE phone=?", (customer_phone,))
-            existing = cursor.fetchone()
-            if existing:
-                cursor.execute(
-                    "UPDATE customers SET visits = visits + 1, total_spend = total_spend + ?, name = ? WHERE phone=?",
-                    (total, customer_name or existing["name"], customer_phone)
-                )
-            else:
-                cursor.execute(
-                    "INSERT INTO customers (id, name, phone, email, visits, total_spend, joined) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    ("c" + uid(), customer_name, customer_phone, "", 1, total, datetime.now().strftime("%Y-%m-%d"))
-                )
-            conn.commit()
+            try:
+                cursor.execute("SELECT * FROM customers WHERE phone=?", (customer_phone,))
+                existing = cursor.fetchone()
+                if existing:
+                    cursor.execute(
+                        "UPDATE customers SET visits = visits + 1, total_spend = total_spend + ?, name = ? WHERE phone=?",
+                        (float(total or 0), customer_name or existing["name"], customer_phone)
+                    )
+                else:
+                    cursor.execute(
+                        "INSERT INTO customers (id, name, phone, email, visits, total_spend, joined) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        ("c" + uid(), customer_name, customer_phone, "", 1, float(total or 0), datetime.now().strftime("%Y-%m-%d"))
+                    )
+                conn.commit()
+            except Exception as ce:
+                print("⚠️ Customer tracking error (order still placed fine):", ce)
 
         conn.close()
         return jsonify({"success": True, "orderId": order_id})
