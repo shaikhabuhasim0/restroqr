@@ -627,7 +627,10 @@ def save_settings():
     return jsonify({"success": True})
 
 
+# 👇 FIX: Yahan module-level pe call kiya, taaki Gunicorn se import hone par
+# bhi ye chale (pehle sirf "python app.py" se direct run karne par chalta tha)
+init_db()
+
 if __name__ == "__main__":
-    init_db()
     print("🔥 Server running on http://127.0.0.1:5000")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
