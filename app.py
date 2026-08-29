@@ -35,7 +35,69 @@ def init_db():
         print("✅ table_number column added!")
     except:
         print("ℹ️ table_number column already exists")
+    try:
+        conn.execute('ALTER TABLE orders ADD COLUMN customer_name TEXT DEFAULT ""')
+        conn.execute('ALTER TABLE orders ADD COLUMN customer_phone TEXT DEFAULT ""')
+        conn.commit()
+        print("✅ customer_name/customer_phone columns added!")
+    except:
+        print("ℹ️ customer_name/customer_phone columns already exist")
+
+    # ── New tables (previously localStorage-only dummy data) ──
+    conn.execute('''CREATE TABLE IF NOT EXISTS tables (
+        id TEXT PRIMARY KEY,
+        number TEXT NOT NULL,
+        capacity INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT "available"
+    )''')
+
+    conn.execute('''CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        icon TEXT DEFAULT "",
+        color TEXT DEFAULT ""
+    )''')
+
+    conn.execute('''CREATE TABLE IF NOT EXISTS customers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        phone TEXT DEFAULT "",
+        email TEXT DEFAULT "",
+        visits INTEGER DEFAULT 0,
+        total_spend REAL DEFAULT 0,
+        joined TEXT DEFAULT ""
+    )''')
+
+    conn.execute('''CREATE TABLE IF NOT EXISTS coupons (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL,
+        discount REAL NOT NULL,
+        type TEXT NOT NULL DEFAULT "percent",
+        expiry TEXT DEFAULT "",
+        active INTEGER DEFAULT 1,
+        usage_count INTEGER DEFAULT 0
+    )''')
+
+    conn.execute('''CREATE TABLE IF NOT EXISTS settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        name TEXT DEFAULT "My Restaurant",
+        address TEXT DEFAULT "",
+        phone TEXT DEFAULT "",
+        gst TEXT DEFAULT "",
+        logo TEXT DEFAULT "",
+        open_time TEXT DEFAULT "10:00",
+        close_time TEXT DEFAULT "23:00",
+        currency TEXT DEFAULT "₹"
+    )''')
+    # Ensure exactly one settings row always exists
+    conn.execute('INSERT OR IGNORE INTO settings (id) VALUES (1)')
+
+    conn.commit()
     conn.close()
+
+def uid():
+    import uuid
+    return uuid.uuid4().hex[:8]
 
 @app.route("/")
 def home_page():
@@ -225,18 +287,41 @@ def place_order():
     conn = get_db()
     cursor = conn.cursor()
     try:
+        customer_name = data.get("customerName", "")
+        customer_phone = data.get("customerPhone", "")
+        total = data.get("total")
+
         cursor.execute(
-            "INSERT INTO orders (table_number, items, total, status, created_at) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO orders (table_number, items, total, status, created_at, customer_name, customer_phone) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 data.get("table"),
                 json.dumps(data.get("items")),
-                data.get("total"),
+                total,
                 "Pending",
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                customer_name,
+                customer_phone
             )
         )
         conn.commit()
         order_id = cursor.lastrowid
+
+        # ── Auto-create/update customer record from real order data ──
+        if customer_phone:
+            cursor.execute("SELECT * FROM customers WHERE phone=?", (customer_phone,))
+            existing = cursor.fetchone()
+            if existing:
+                cursor.execute(
+                    "UPDATE customers SET visits = visits + 1, total_spend = total_spend + ?, name = ? WHERE phone=?",
+                    (total, customer_name or existing["name"], customer_phone)
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO customers (id, name, phone, email, visits, total_spend, joined) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    ("c" + uid(), customer_name, customer_phone, "", 1, total, datetime.now().strftime("%Y-%m-%d"))
+                )
+            conn.commit()
+
         conn.close()
         return jsonify({"success": True, "orderId": order_id})
     except Exception as e:
@@ -259,7 +344,9 @@ def get_orders():
             "items": json.loads(row["items"]),
             "total": row["total"],
             "status": row["status"],
-            "time": row["created_at"]
+            "time": row["created_at"],
+            "customerName": row["customer_name"] if "customer_name" in row.keys() else "",
+            "customerPhone": row["customer_phone"] if "customer_phone" in row.keys() else ""
         })
     return jsonify({"success": True, "orders": orders})
 
@@ -281,6 +368,264 @@ def delete_all_orders():
     conn.commit()
     conn.close()
     return jsonify({"success": True, "message": "Order history cleared"})
+
+
+# ============================================================
+# TABLES — real backend CRUD (replaces localStorage rq_tables)
+# ============================================================
+@app.route("/getTables", methods=["GET"])
+def get_tables():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tables ORDER BY number")
+    rows = cursor.fetchall()
+    conn.close()
+    tables = [{"id": r["id"], "number": r["number"], "capacity": r["capacity"], "status": r["status"]} for r in rows]
+    return jsonify({"success": True, "tables": tables})
+
+@app.route("/addTable", methods=["POST"])
+def add_table():
+    data = request.get_json()
+    conn = get_db()
+    cursor = conn.cursor()
+    new_id = "T" + uid()
+    cursor.execute(
+        "INSERT INTO tables (id, number, capacity, status) VALUES (?, ?, ?, ?)",
+        (new_id, data["number"], data["capacity"], data.get("status", "available"))
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "id": new_id})
+
+@app.route("/editTable/<table_id>", methods=["PUT"])
+def edit_table(table_id):
+    data = request.get_json()
+    conn = get_db()
+    cursor = conn.cursor()
+    fields, values = [], []
+    for key in ["number", "capacity", "status"]:
+        if key in data:
+            fields.append(f"{key}=?")
+            values.append(data[key])
+    values.append(table_id)
+    cursor.execute(f"UPDATE tables SET {', '.join(fields)} WHERE id=?", values)
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+@app.route("/deleteTable/<table_id>", methods=["DELETE"])
+def delete_table(table_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM tables WHERE id=?", (table_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+
+# ============================================================
+# CATEGORIES — real backend CRUD (replaces localStorage rq_categories)
+# ============================================================
+@app.route("/getCategories", methods=["GET"])
+def get_categories():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM categories ORDER BY name")
+    rows = cursor.fetchall()
+    conn.close()
+    cats = [{"id": r["id"], "name": r["name"], "icon": r["icon"], "color": r["color"]} for r in rows]
+    return jsonify({"success": True, "categories": cats})
+
+@app.route("/addCategory", methods=["POST"])
+def add_category():
+    data = request.get_json()
+    conn = get_db()
+    cursor = conn.cursor()
+    new_id = "cat" + uid()
+    cursor.execute(
+        "INSERT INTO categories (id, name, icon, color) VALUES (?, ?, ?, ?)",
+        (new_id, data["name"], data.get("icon", ""), data.get("color", ""))
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "id": new_id})
+
+@app.route("/editCategory/<cat_id>", methods=["PUT"])
+def edit_category(cat_id):
+    data = request.get_json()
+    conn = get_db()
+    cursor = conn.cursor()
+    fields, values = [], []
+    for key in ["name", "icon", "color"]:
+        if key in data:
+            fields.append(f"{key}=?")
+            values.append(data[key])
+    values.append(cat_id)
+    cursor.execute(f"UPDATE categories SET {', '.join(fields)} WHERE id=?", values)
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+@app.route("/deleteCategory/<cat_id>", methods=["DELETE"])
+def delete_category(cat_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM categories WHERE id=?", (cat_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+
+# ============================================================
+# CUSTOMERS — real backend CRUD (replaces localStorage rq_customers)
+# ============================================================
+@app.route("/getCustomers", methods=["GET"])
+def get_customers():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM customers ORDER BY name")
+    rows = cursor.fetchall()
+    conn.close()
+    customers = [{
+        "id": r["id"], "name": r["name"], "phone": r["phone"], "email": r["email"],
+        "visits": r["visits"], "totalSpend": r["total_spend"], "joined": r["joined"]
+    } for r in rows]
+    return jsonify({"success": True, "customers": customers})
+
+@app.route("/addCustomer", methods=["POST"])
+def add_customer():
+    data = request.get_json()
+    conn = get_db()
+    cursor = conn.cursor()
+    new_id = "c" + uid()
+    cursor.execute(
+        "INSERT INTO customers (id, name, phone, email, visits, total_spend, joined) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (new_id, data["name"], data.get("phone", ""), data.get("email", ""),
+         data.get("visits", 0), data.get("totalSpend", 0), data.get("joined", datetime.now().strftime("%Y-%m-%d")))
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "id": new_id})
+
+@app.route("/editCustomer/<cust_id>", methods=["PUT"])
+def edit_customer(cust_id):
+    data = request.get_json()
+    conn = get_db()
+    cursor = conn.cursor()
+    fields, values = [], []
+    field_map = {"name": "name", "phone": "phone", "email": "email", "visits": "visits", "totalSpend": "total_spend", "joined": "joined"}
+    for key, col in field_map.items():
+        if key in data:
+            fields.append(f"{col}=?")
+            values.append(data[key])
+    values.append(cust_id)
+    cursor.execute(f"UPDATE customers SET {', '.join(fields)} WHERE id=?", values)
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+@app.route("/deleteCustomer/<cust_id>", methods=["DELETE"])
+def delete_customer(cust_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM customers WHERE id=?", (cust_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+
+# ============================================================
+# COUPONS — real backend CRUD (replaces localStorage rq_coupons)
+# ============================================================
+@app.route("/getCoupons", methods=["GET"])
+def get_coupons():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM coupons ORDER BY code")
+    rows = cursor.fetchall()
+    conn.close()
+    coupons = [{
+        "id": r["id"], "code": r["code"], "discount": r["discount"], "type": r["type"],
+        "expiry": r["expiry"], "active": bool(r["active"]), "usageCount": r["usage_count"]
+    } for r in rows]
+    return jsonify({"success": True, "coupons": coupons})
+
+@app.route("/addCoupon", methods=["POST"])
+def add_coupon():
+    data = request.get_json()
+    conn = get_db()
+    cursor = conn.cursor()
+    new_id = "cp" + uid()
+    cursor.execute(
+        "INSERT INTO coupons (id, code, discount, type, expiry, active, usage_count) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (new_id, data["code"], data["discount"], data.get("type", "percent"),
+         data.get("expiry", ""), int(data.get("active", True)), data.get("usageCount", 0))
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "id": new_id})
+
+@app.route("/editCoupon/<coupon_id>", methods=["PUT"])
+def edit_coupon(coupon_id):
+    data = request.get_json()
+    conn = get_db()
+    cursor = conn.cursor()
+    fields, values = [], []
+    field_map = {"code": "code", "discount": "discount", "type": "type", "expiry": "expiry", "active": "active", "usageCount": "usage_count"}
+    for key, col in field_map.items():
+        if key in data:
+            fields.append(f"{col}=?")
+            values.append(int(data[key]) if key == "active" else data[key])
+    values.append(coupon_id)
+    cursor.execute(f"UPDATE coupons SET {', '.join(fields)} WHERE id=?", values)
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+@app.route("/deleteCoupon/<coupon_id>", methods=["DELETE"])
+def delete_coupon(coupon_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM coupons WHERE id=?", (coupon_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
+
+# ============================================================
+# SETTINGS — real backend (replaces localStorage rq_settings)
+# Single row (id=1), also fixes the old "/getSettings 404" bug
+# ============================================================
+@app.route("/getSettings", methods=["GET"])
+def get_settings():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM settings WHERE id=1")
+    r = cursor.fetchone()
+    conn.close()
+    settings = {
+        "name": r["name"], "address": r["address"], "phone": r["phone"], "gst": r["gst"],
+        "logo": r["logo"], "openTime": r["open_time"], "closeTime": r["close_time"], "currency": r["currency"]
+    }
+    return jsonify({"success": True, "settings": settings})
+
+@app.route("/saveSettings", methods=["PUT", "POST"])
+def save_settings():
+    data = request.get_json()
+    conn = get_db()
+    cursor = conn.cursor()
+    fields, values = [], []
+    field_map = {"name": "name", "address": "address", "phone": "phone", "gst": "gst",
+                 "logo": "logo", "openTime": "open_time", "closeTime": "close_time", "currency": "currency"}
+    for key, col in field_map.items():
+        if key in data:
+            fields.append(f"{col}=?")
+            values.append(data[key])
+    cursor.execute(f"UPDATE settings SET {', '.join(fields)} WHERE id=1", values)
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True})
+
 
 if __name__ == "__main__":
     init_db()
