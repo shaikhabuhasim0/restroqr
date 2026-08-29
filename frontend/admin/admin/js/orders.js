@@ -111,11 +111,16 @@ async function renderOrders(filter = 'all', search = '') {
       .ostat-icon { font-size:1.4rem; }
       .ostat-val  { font-size:1.3rem; font-weight:800; line-height:1; }
       .ostat-lbl  { font-size:.68rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; }
+      .btn-clear-history { background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff; border:none; padding:9px 16px; border-radius:10px; font-size:.8rem; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all .18s; }
+      .btn-clear-history:hover { filter:brightness(.9); transform:translateY(-1px); }
     </style>
 
     <div class="section-header">
       <span class="section-title">🧾 Orders</span>
-      <div style="font-size:.82rem;color:var(--text-muted);">Live kitchen tracker</div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="font-size:.82rem;color:var(--text-muted);">Live kitchen tracker</div>
+        <button class="btn-clear-history" onclick="clearOrderHistory()">🗑️ Clear History</button>
+      </div>
     </div>
 
     <!-- Stats strip -->
@@ -260,6 +265,27 @@ async function updateStatus(id, status) {
   } catch (e) {
     showToast('❌ Failed to update order', 'error');
   }
+}
+
+/* ── Clear all order history via Flask API ──────────────── */
+function clearOrderHistory() {
+  confirmDialog(
+    '⚠️ Ye SAARE orders (Pending, Preparing, Ready, Completed, Rejected) permanently delete kar dega. Ye undo nahi ho sakta. Continue karein?',
+    async () => {
+      try {
+        const res = await fetch('/deleteAllOrders', { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('🗑️ Order history cleared!', 'success');
+          await renderOrders();
+        } else {
+          showToast('❌ Failed to clear history', 'error');
+        }
+      } catch (e) {
+        showToast('❌ Failed to clear history', 'error');
+      }
+    }
+  );
 }
 
 /* ── View detail modal ──────────────────────────────────── */
