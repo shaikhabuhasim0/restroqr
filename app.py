@@ -273,6 +273,15 @@ def update_order_status(order_id):
     conn.close()
     return jsonify({"success": True})
 
+@app.route("/deleteAllOrders", methods=["DELETE"])
+def delete_all_orders():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM orders")
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "message": "Order history cleared"})
+
 if __name__ == "__main__":
     init_db()
     print("🔥 Server running on http://127.0.0.1:5000")
