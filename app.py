@@ -95,6 +95,38 @@ def init_db():
         except:
             pass  # column already exists — ignore
 
+    # ── Safe one-time repair: agar 'id' column kabhi INTEGER type mein ban gaya tha
+    # (kisi bahut purani attempt se), to use TEXT mein migrate karo bina data khoye ──
+    try:
+        info_cursor = conn.cursor()
+        info_cursor.execute("PRAGMA table_info(customers)")
+        cols_info = info_cursor.fetchall()
+        id_col = next((c for c in cols_info if c["name"] == "id"), None)
+        if id_col and id_col["type"].upper() != "TEXT":
+            conn.execute("ALTER TABLE customers RENAME TO customers_legacy_backup")
+            conn.commit()
+            conn.execute('''CREATE TABLE customers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                phone TEXT DEFAULT "",
+                email TEXT DEFAULT "",
+                visits INTEGER DEFAULT 0,
+                total_spend REAL DEFAULT 0,
+                joined TEXT DEFAULT ""
+            )''')
+            try:
+                conn.execute('''INSERT INTO customers (id, name, phone, email, visits, total_spend, joined)
+                    SELECT 'c' || CAST(id AS TEXT), name,
+                           IFNULL(phone, ''), IFNULL(email, ''),
+                           IFNULL(visits, 0), IFNULL(total_spend, 0), IFNULL(joined, '')
+                    FROM customers_legacy_backup''')
+                conn.commit()
+            except Exception as mig_err:
+                print("ℹ️ No old customer rows to migrate:", mig_err)
+            print("✅ Fixed customers.id column type (was not TEXT) — old data safely migrated")
+    except Exception as e:
+        print("⚠️ Customer table id-type check skipped:", e)
+
     conn.execute('''CREATE TABLE IF NOT EXISTS coupons (
         id TEXT PRIMARY KEY,
         code TEXT NOT NULL,
