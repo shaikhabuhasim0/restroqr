@@ -9,16 +9,24 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
-<script src="js/data.js"></script>
 <script src="js/app.js"></script>
 <script>
 Auth.guard();
 let editTableId = null;
 
 // 👇 FIX #1: "async" added so we can "await" buildPage() before touching the DOM
+let _allTables = [];
+
 async function render() {
-  const tables = DB.get('tables');
-  const settings = DB.getOne('settings');
+  let tables = [];
+  try {
+    const res = await fetch('/getTables');
+    const data = await res.json();
+    tables = data.success ? data.tables : [];
+  } catch (e) {
+    tables = [];
+  }
+  _allTables = tables;
   const baseUrl = window.location.origin + '/menu/';
 
   const content = `
@@ -110,7 +118,7 @@ async function render() {
 
   // 👇 FIX #3: setTimeout hata diya — ab QR generate karne se pehle DOM
   // hamesha ready hoga, chahe backend kitna bhi slow kyun na ho
-  const tables2 = DB.get('tables');
+  const tables2 = _allTables;
   const url = window.location.origin + '/menu/';
   tables2.forEach(t => {
     const el = document.getElementById('qr-' + t.id);
@@ -139,7 +147,7 @@ function openAdd() {
   openModal('tableModal');
 }
 function openEdit(id) {
-  const t = DB.get('tables').find(t=>t.id===id);
+  const t = _allTables.find(t=>t.id===id);
   if (!t) return;
   editTableId = id;
   document.getElementById('tableModalTitle').textContent = 'Edit Table';
@@ -148,37 +156,61 @@ function openEdit(id) {
   document.getElementById('tStatus').value = t.status;
   openModal('tableModal');
 }
-function saveTable() {
+async function saveTable() {
   const num = document.getElementById('tNum').value.trim();
   const cap = parseInt(document.getElementById('tCap').value);
   const status = document.getElementById('tStatus').value;
   if (!num || !cap) { showToast('Fill all fields','error'); return; }
-  const tables = DB.get('tables');
-  if (editTableId) {
-    const idx = tables.findIndex(t=>t.id===editTableId);
-    tables[idx] = {...tables[idx], number:num, capacity:cap, status};
-    showToast('Table updated!','success');
-  } else {
-    tables.push({ id:'T'+uid(), number:num, capacity:cap, status });
-    showToast('Table added!','success');
+  try {
+    if (editTableId) {
+      const res = await fetch(`/editTable/${editTableId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: num, capacity: cap, status })
+      });
+      const data = await res.json();
+      if (data.success) showToast('Table updated!','success');
+      else { showToast('❌ Update failed','error'); return; }
+    } else {
+      const res = await fetch('/addTable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: num, capacity: cap, status })
+      });
+      const data = await res.json();
+      if (data.success) showToast('Table added!','success');
+      else { showToast('❌ Add failed','error'); return; }
+    }
+    closeModal('tableModal');
+    render();
+  } catch (e) {
+    showToast('❌ Something went wrong','error');
   }
-  DB.set('tables',tables);
-  closeModal('tableModal');
-  render();
 }
-function changeStatus(id, status) {
-  const tables = DB.get('tables');
-  const idx = tables.findIndex(t=>t.id===id);
-  tables[idx].status = status;
-  DB.set('tables',tables);
-  showToast('Status updated','info');
-  render();
+async function changeStatus(id, status) {
+  try {
+    const res = await fetch(`/editTable/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    const data = await res.json();
+    if (data.success) { showToast('Status updated','info'); render(); }
+    else showToast('❌ Failed to update status','error');
+  } catch (e) {
+    showToast('❌ Failed to update status','error');
+  }
 }
 function deleteTable(id) {
-  confirmDialog('Delete this table?', () => {
-    DB.set('tables', DB.get('tables').filter(t=>t.id!==id));
-    showToast('Deleted','warn');
-    render();
+  confirmDialog('Delete this table?', async () => {
+    try {
+      const res = await fetch(`/deleteTable/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) { showToast('Deleted','warn'); render(); }
+      else showToast('❌ Delete failed','error');
+    } catch (e) {
+      showToast('❌ Delete failed','error');
+    }
   });
 }
 function downloadQR(id, num) {
