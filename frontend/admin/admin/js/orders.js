@@ -1,5 +1,9 @@
 // orders.js — Flask API version
 
+let _pollTimer = null;
+let _currentFilter = 'all';
+let _currentSearch = '';
+
 async function ordersInit() {
   Auth.guard();
   showOrderSkeleton();   // Pehle skeleton dikhao
@@ -7,6 +11,16 @@ async function ordersInit() {
   await renderOrders();  // API ka wait karo
 
   // renderOrders() aate hi skeleton automatically replace ho jayega
+
+  // ── Live auto-refresh: har 6 second mein background mein naya data check karo ──
+  if (_pollTimer) clearInterval(_pollTimer); // purana timer safai (agar dobara init hua to)
+  _pollTimer = setInterval(async () => {
+    const modalOpen = document.getElementById('orderModal')?.classList.contains('open');
+    const searchFocused = document.activeElement?.id === 'orderSearch';
+    // Agar admin modal dekh raha hai ya search box mein type kar raha hai, to abhi refresh mat karo
+    if (modalOpen || searchFocused) return;
+    await renderOrders(_currentFilter, _currentSearch);
+  }, 6000);
 }
 
 /* ── Status config ─────────────────────────────────────── */
@@ -32,6 +46,8 @@ function showOrderSkeleton() {
     `);
 }
 async function renderOrders(filter = 'all', search = '') {
+  _currentFilter = filter;
+  _currentSearch = search;
   // Flask API se orders fetch karo
   try {
     const res = await fetch('/getOrders');
