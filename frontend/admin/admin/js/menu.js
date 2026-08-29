@@ -2,10 +2,21 @@
 
 let editingMenuId = null;
 let _menuItems = [];
+let _allCategories = [];
 
 function menuInit() {
   Auth.guard();
   renderMenu();
+}
+
+async function loadCategoriesFromAPI() {
+  try {
+    const res = await fetch('/getCategories');
+    const data = await res.json();
+    _allCategories = data.success ? data.categories : [];
+  } catch (e) {
+    _allCategories = [];
+  }
 }
 
 async function loadMenuFromAPI() {
@@ -27,7 +38,7 @@ async function loadMenuFromAPI() {
 }
 
 async function renderMenu(filterCat = 'all', search = '', view = 'grid') {
-  const menu = await loadMenuFromAPI();
+  const [menu] = await Promise.all([loadMenuFromAPI(), loadCategoriesFromAPI()]);
   const cats = [...new Set(menu.map(i => i.category))].map((c, idx) => ({ id: c, name: c }));
   
   let items = [...menu];
@@ -76,7 +87,19 @@ async function renderMenu(filterCat = 'all', search = '', view = 'grid') {
           <div class="form-row">
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">Category *</label>
-              <input class="form-control" id="mCat" placeholder="e.g. Main Course">
+              ${_allCategories.length === 0 ? `
+                <select class="form-control" id="mCat" disabled>
+                  <option value="">No categories yet — add one first</option>
+                </select>
+                <div style="font-size:.72rem;margin-top:4px;">
+                  <a href="categories.html" style="color:var(--primary);font-weight:700;">+ Go to Categories page</a>
+                </div>
+              ` : `
+                <select class="form-control" id="mCat">
+                  <option value="">Select category…</option>
+                  ${_allCategories.map(c => `<option value="${c.name}">${c.icon||''} ${c.name}</option>`).join('')}
+                </select>
+              `}
             </div>
             <div class="form-group" style="margin-bottom:0">
               <label class="form-label">Price (₹) *</label>
@@ -170,7 +193,9 @@ function openAddMenu() {
   editingMenuId = null;
   window._editImgData = '';
   document.getElementById('menuModalTitle').textContent = 'Add Menu Item';
-  ['mName','mDesc','mPrice','mCat'].forEach(id => document.getElementById(id).value = '');
+  ['mName','mDesc','mPrice'].forEach(id => document.getElementById(id).value = '');
+  const catEl = document.getElementById('mCat');
+  if (catEl) catEl.value = '';
   document.getElementById('mVegY').checked = true;
   document.getElementById('mAvail').classList.add('on');
   document.getElementById('imgPreview').innerHTML = '📷 Click to upload';
@@ -187,7 +212,18 @@ function editMenu(id) {
   document.getElementById('mName').value = item.name;
   document.getElementById('mDesc').value = item.desc || '';
   document.getElementById('mPrice').value = item.price;
-  document.getElementById('mCat').value = item.category;
+  const catEl = document.getElementById('mCat');
+  if (catEl) {
+    // Agar item ki category dropdown list mein nahi hai (purana/typo wala data),
+    // usse temporarily ek extra option ke roop mein add kar do taaki data na toote
+    if (item.category && ![..._allCategories].some(c => c.name === item.category)) {
+      const opt = document.createElement('option');
+      opt.value = item.category;
+      opt.textContent = item.category + ' (not in Categories list)';
+      catEl.appendChild(opt);
+    }
+    catEl.value = item.category;
+  }
   document.getElementById('mImgFile').value = '';
 
   // ✅ Show existing image in preview
@@ -214,11 +250,12 @@ function handleImgUpload(e) {
 async function saveMenu() {
   const name  = document.getElementById('mName').value.trim();
   const price = parseFloat(document.getElementById('mPrice').value);
-  const cat   = document.getElementById('mCat').value.trim();
+  const catEl = document.getElementById('mCat');
+  const cat   = catEl ? catEl.value.trim() : '';
   const desc  = document.getElementById('mDesc').value.trim();
   const image = window._editImgData || ''; // ✅ base64 image
 
-  if (!name || !price || !cat) { showToast('Please fill required fields', 'error'); return; }
+  if (!name || !price || !cat) { showToast('Please fill required fields (select a category too)', 'error'); return; }
 
   if (editingMenuId) {
     // ✅ Send image only if new one uploaded, otherwise keep existing
