@@ -79,11 +79,6 @@ def init_db():
         total_spend REAL DEFAULT 0,
         joined TEXT DEFAULT ""
     )''')
-    print("CUSTOMERS TABLE INFO:")
-rows = conn.execute("PRAGMA table_info(customers)").fetchall()
-
-for row in rows:
-    print(dict(row))
     # Safety: agar 'customers' table purane/adhure schema se pehle se ban chuki thi,
     # to yahan missing columns explicitly add karo
     for col_def in [
