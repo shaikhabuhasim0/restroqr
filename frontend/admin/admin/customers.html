@@ -12,17 +12,37 @@
 <script>
 Auth.guard();
 
-function render(search='') {
-  let customers = DB.get('customers');
-  if (search) customers = customers.filter(c =>
-    c.name.toLowerCase().includes(search) ||
-    c.phone.includes(search) ||
-    c.email.toLowerCase().includes(search)
-  );
+let _allCustomers = [];
+let _allOrdersForCust = [];
 
-  const orders = DB.get('orders');
-  const totalRevenue = customers.reduce((s,c)=>s+c.totalSpend,0);
-  const totalVisits  = customers.reduce((s,c)=>s+c.visits,0);
+async function render(search='') {
+  // Backend se real customers + orders fetch karo
+  try {
+    const [custRes, ordRes] = await Promise.all([
+      fetch('/getCustomers'),
+      fetch('/getOrders')
+    ]);
+    const custData = await custRes.json();
+    const ordData = await ordRes.json();
+    _allCustomers = custData.success ? custData.customers : [];
+    _allOrdersForCust = ordData.success ? ordData.orders : [];
+  } catch (e) {
+    _allCustomers = [];
+    _allOrdersForCust = [];
+  }
+
+  let customers = [..._allCustomers];
+  if (search) {
+    const s = search.toLowerCase();
+    customers = customers.filter(c =>
+      c.name.toLowerCase().includes(s) ||
+      c.phone.includes(s) ||
+      (c.email || '').toLowerCase().includes(s)
+    );
+  }
+
+  const totalRevenue = _allCustomers.reduce((s,c)=>s+c.totalSpend,0);
+  const totalVisits  = _allCustomers.reduce((s,c)=>s+c.visits,0);
 
   const content = `
     <div class="section-header">
@@ -33,7 +53,7 @@ function render(search='') {
     <div class="stat-grid" style="margin-bottom:20px;">
       <div class="stat-card">
         <div class="stat-icon" style="background:#f3e5f5;">👥</div>
-        <div class="stat-info"><div class="stat-label">Total Customers</div><div class="stat-value" style="color:var(--ready)">${DB.get('customers').length}</div></div>
+        <div class="stat-info"><div class="stat-label">Total Customers</div><div class="stat-value" style="color:var(--ready)">${_allCustomers.length}</div></div>
       </div>
       <div class="stat-card">
         <div class="stat-icon" style="background:#fdf8ed;">💰</div>
@@ -45,7 +65,7 @@ function render(search='') {
       </div>
       <div class="stat-card">
         <div class="stat-icon" style="background:#e8f5e9;">📊</div>
-        <div class="stat-info"><div class="stat-label">Avg Spend</div><div class="stat-value" style="color:var(--success);font-size:1.1rem">${customers.length?fmtCurrency(Math.round(totalRevenue/customers.length)):fmtCurrency(0)}</div></div>
+        <div class="stat-info"><div class="stat-label">Avg Spend</div><div class="stat-value" style="color:var(--success);font-size:1.1rem">${_allCustomers.length?fmtCurrency(Math.round(totalRevenue/_allCustomers.length)):fmtCurrency(0)}</div></div>
       </div>
     </div>
 
@@ -71,7 +91,7 @@ function render(search='') {
                   </div>
                 </td>
                 <td>${c.phone}</td>
-                <td>${c.email}</td>
+                <td>${c.email || '—'}</td>
                 <td><span class="badge badge-info">${c.visits}</span></td>
                 <td><strong>${fmtCurrency(c.totalSpend)}</strong></td>
                 <td>${fmtCurrency(c.visits>0?Math.round(c.totalSpend/c.visits):0)}</td>
@@ -121,13 +141,17 @@ function render(search='') {
       </div>
     </div>`;
 
-  buildPage('customers','Customers',content);
+  await buildPage('customers','Customers',content);
 }
 
 function viewCustomer(id) {
-  const c = DB.get('customers').find(c=>c.id===id);
+  const c = _allCustomers.find(c=>c.id===id);
   if (!c) return;
-  const custOrders = DB.get('orders').filter(o=>o.customer===c.name);
+  // Real orders us customer ke phone number se match karo (name se bhi fallback, purane data ke liye)
+  const custOrders = _allOrdersForCust.filter(o =>
+    (o.customerPhone && o.customerPhone === c.phone) ||
+    (!o.customerPhone && o.customer === c.name)
+  );
   document.getElementById('custModalTitle').textContent = c.name;
   document.getElementById('custModalBody').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px;">
@@ -146,7 +170,7 @@ function viewCustomer(id) {
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
       <div><span style="font-size:.75rem;color:var(--text-muted);font-weight:700;">PHONE</span><br><strong>${c.phone}</strong></div>
-      <div><span style="font-size:.75rem;color:var(--text-muted);font-weight:700;">EMAIL</span><br><strong>${c.email}</strong></div>
+      <div><span style="font-size:.75rem;color:var(--text-muted);font-weight:700;">EMAIL</span><br><strong>${c.email || '—'}</strong></div>
       <div><span style="font-size:.75rem;color:var(--text-muted);font-weight:700;">MEMBER SINCE</span><br>${fmtDateOnly(c.joined)}</div>
     </div>
     ${custOrders.length>0?`
@@ -154,7 +178,7 @@ function viewCustomer(id) {
       <div class="table-wrap">
         <table><thead><tr><th>Order ID</th><th>Table</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
         <tbody>${custOrders.slice(0,5).map(o=>`<tr>
-          <td><strong>${o.id}</strong></td>
+          <td><strong>#${o.id}</strong></td>
           <td>${o.table}</td>
           <td>${fmtCurrency(o.total)}</td>
           <td>${statusBadge(o.status)}</td>
@@ -168,25 +192,48 @@ function openAdd() {
   ['cstName','cstPhone','cstEmail'].forEach(id=>document.getElementById(id).value='');
   openModal('addCustModal');
 }
-function saveCustomer() {
+
+async function saveCustomer() {
   const name = document.getElementById('cstName').value.trim();
   const phone = document.getElementById('cstPhone').value.trim();
   const email = document.getElementById('cstEmail').value.trim();
   if (!name||!phone) { showToast('Name and phone required','error'); return; }
-  const customers = DB.get('customers');
-  customers.push({ id:'c'+uid(), name, phone, email, visits:0, totalSpend:0, joined:new Date().toISOString().split('T')[0] });
-  DB.set('customers',customers);
-  showToast('Customer added!','success');
-  closeModal('addCustModal');
-  render();
+  try {
+    const res = await fetch('/addCustomer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, phone, email, visits: 0, totalSpend: 0, joined: new Date().toISOString().split('T')[0] })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Customer added!','success');
+      closeModal('addCustModal');
+      render();
+    } else {
+      showToast('❌ Failed to add customer','error');
+    }
+  } catch (e) {
+    showToast('❌ Failed to add customer','error');
+  }
 }
+
 function deleteCustomer(id) {
-  confirmDialog('Delete this customer?', () => {
-    DB.set('customers', DB.get('customers').filter(c=>c.id!==id));
-    showToast('Deleted','warn');
-    render();
+  confirmDialog('Delete this customer?', async () => {
+    try {
+      const res = await fetch(`/deleteCustomer/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Deleted','warn');
+        render();
+      } else {
+        showToast('❌ Failed to delete','error');
+      }
+    } catch (e) {
+      showToast('❌ Failed to delete','error');
+    }
   });
 }
+
 render();
 </script>
 </body>
