@@ -11,9 +11,26 @@
 <script src="js/app.js"></script>
 <script>
 Auth.guard();
+let _adminUsername = '';
 
-function render() {
-  const s = DB.getOne('settings');
+async function render() {
+  let s = {};
+  try {
+    const res = await fetch('/getSettings');
+    const data = await res.json();
+    s = data.success ? data.settings : {};
+  } catch (e) {
+    s = {};
+  }
+
+  try {
+    const res2 = await fetch('/getAdminUsername');
+    const data2 = await res2.json();
+    _adminUsername = data2.success ? data2.username : '';
+  } catch (e) {
+    _adminUsername = '';
+  }
+
   const content = `
     <div class="section-header">
       <span class="section-title">Settings</span>
@@ -105,7 +122,7 @@ function render() {
           <div class="settings-section">
             <div class="settings-section-title">👤 Admin Account</div>
             <div style="font-size:.88rem;color:var(--text-muted);margin-bottom:8px;">Admin ID</div>
-            <div style="font-weight:700;font-size:1rem;margin-bottom:16px;"><code>${DB.getOne('admin').id}</code></div>
+            <div style="font-weight:700;font-size:1rem;margin-bottom:16px;"><code>${_adminUsername||'—'}</code></div>
             <div class="form-group">
               <label class="form-label">Change Admin ID</label>
               <input class="form-control" id="newAdminId" placeholder="New admin ID">
@@ -113,19 +130,10 @@ function render() {
             <button class="btn btn-outline btn-sm" onclick="changeAdminId()">Update Admin ID</button>
           </div>
         </div>
-
-        <!-- Danger zone -->
-        <div class="card" style="margin-top:20px;border:1.5px solid var(--danger);">
-          <div class="settings-section" style="margin-bottom:0">
-            <div class="settings-section-title" style="color:var(--danger);border-color:rgba(231,76,60,.2);">⚠️ Danger Zone</div>
-            <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:14px;">Reset all data and seed fresh dummy data. This cannot be undone.</p>
-            <button class="btn btn-danger btn-sm" onclick="resetData()">🔄 Reset All Data</button>
-          </div>
-        </div>
       </div>
     </div>`;
 
-  buildPage('settings','Settings',content);
+  await buildPage('settings','Settings',content);
 }
 
 function handleLogoUpload(e) {
@@ -140,72 +148,89 @@ function handleLogoUpload(e) {
   reader.readAsDataURL(file);
 }
 
-function saveSettings() {
-  const s = {
-    name:      document.getElementById('sName').value.trim(),
+async function saveSettings() {
+  const name = document.getElementById('sName').value.trim();
+  if (!name) { showToast('Restaurant name required','error'); return; }
+  const payload = {
+    name,
     address:   document.getElementById('sAddress').value.trim(),
     phone:     document.getElementById('sPhone').value.trim(),
     gst:       document.getElementById('sGst').value.trim(),
     openTime:  document.getElementById('sOpen').value,
     closeTime: document.getElementById('sClose').value,
-    logo:      window._logoData || DB.getOne('settings').logo || '',
     currency:  '₹'
   };
-  if (!s.name) { showToast('Restaurant name required','error'); return; }
-  DB.set('settings',s);
-  showToast('Settings saved!','success');
-  render();
+  if (window._logoData) payload.logo = window._logoData;
+  try {
+    const res = await fetch('/saveSettings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) { showToast('Settings saved!','success'); render(); }
+    else showToast('❌ Save failed','error');
+  } catch (e) {
+    showToast('❌ Save failed','error');
+  }
 }
 
-function changePassword() {
+async function changePassword() {
   const current = document.getElementById('pwdCurrent').value;
   const newPwd  = document.getElementById('pwdNew').value;
   const confirm = document.getElementById('pwdConfirm').value;
-  const admin   = DB.getOne('admin');
   const msgEl   = document.getElementById('pwdMsg');
 
-  if (admin.password !== current) {
-    msgEl.innerHTML = '<div style="background:#ffebee;color:var(--danger);padding:10px 14px;border-radius:8px;font-size:.85rem;font-weight:600;margin-bottom:14px;">⚠️ Current password is incorrect</div>';
-    return;
+  const errBox = (msg) => `<div style="background:#ffebee;color:var(--danger);padding:10px 14px;border-radius:8px;font-size:.85rem;font-weight:600;margin-bottom:14px;">⚠️ ${msg}</div>`;
+  const okBox  = (msg) => `<div style="background:#e8f5e9;color:var(--success);padding:10px 14px;border-radius:8px;font-size:.85rem;font-weight:600;margin-bottom:14px;">✅ ${msg}</div>`;
+
+  if (!newPwd || newPwd.length < 6) { msgEl.innerHTML = errBox('Password must be at least 6 characters'); return; }
+  if (newPwd !== confirm) { msgEl.innerHTML = errBox('Passwords do not match'); return; }
+
+  try {
+    const res = await fetch('/changeAdminPassword', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: _adminUsername, currentPassword: current, newPassword: newPwd })
+    });
+    const data = await res.json();
+    if (data.success) {
+      msgEl.innerHTML = okBox('Password updated successfully!');
+      ['pwdCurrent','pwdNew','pwdConfirm'].forEach(id => document.getElementById(id).value='');
+    } else {
+      msgEl.innerHTML = errBox(data.message || 'Failed to update password');
+    }
+  } catch (e) {
+    msgEl.innerHTML = errBox('Something went wrong, try again');
   }
-  if (!newPwd || newPwd.length < 6) {
-    msgEl.innerHTML = '<div style="background:#ffebee;color:var(--danger);padding:10px 14px;border-radius:8px;font-size:.85rem;font-weight:600;margin-bottom:14px;">⚠️ Password must be at least 6 characters</div>';
-    return;
-  }
-  if (newPwd !== confirm) {
-    msgEl.innerHTML = '<div style="background:#ffebee;color:var(--danger);padding:10px 14px;border-radius:8px;font-size:.85rem;font-weight:600;margin-bottom:14px;">⚠️ Passwords do not match</div>';
-    return;
-  }
-  admin.password = newPwd;
-  DB.set('admin', admin);
-  msgEl.innerHTML = '<div style="background:#e8f5e9;color:var(--success);padding:10px 14px;border-radius:8px;font-size:.85rem;font-weight:600;margin-bottom:14px;">✅ Password updated successfully!</div>';
-  ['pwdCurrent','pwdNew','pwdConfirm'].forEach(id => document.getElementById(id).value='');
 }
 
-function changeAdminId() {
+async function changeAdminId() {
   const newId = document.getElementById('newAdminId').value.trim();
   if (!newId) { showToast('Enter a new admin ID','error'); return; }
-  const admin = DB.getOne('admin');
-  admin.id = newId;
-  DB.set('admin', admin);
-  showToast('Admin ID updated!','success');
-  document.getElementById('newAdminId').value='';
-  render();
+  try {
+    const res = await fetch('/changeAdminId', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldUsername: _adminUsername, newUsername: newId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Admin ID updated! Use it next time you log in.','success');
+      document.getElementById('newAdminId').value='';
+      render();
+    } else {
+      showToast('❌ ' + (data.message || 'Failed to update'),'error');
+    }
+  } catch (e) {
+    showToast('❌ Failed to update','error');
+  }
 }
 
 function togglePwd(id, btn) {
   const inp = document.getElementById(id);
   if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
   else { inp.type = 'password'; btn.textContent = '👁️'; }
-}
-
-function resetData() {
-  confirmDialog('Reset ALL data? This will re-seed dummy data and cannot be undone.', () => {
-    localStorage.removeItem('rq_initialized');
-    DB.init();
-    showToast('Data reset & re-seeded!','warn');
-    render();
-  });
 }
 
 render();
