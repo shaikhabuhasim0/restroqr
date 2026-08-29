@@ -7,7 +7,7 @@ const Auth = {
   },
   async login(id, password, remember) {
     try {
-      const res = await fetch('/admin/login', {
+      const res = await fetch('/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: id, password: password })
@@ -21,13 +21,9 @@ const Auth = {
       }
       return false;
     } catch (e) {
-      // Fallback: hardcoded check agar API nahi bani abhi
-      if (id === 'admin' && password === 'admin123') {
-        sessionStorage.setItem('rq_session', '1');
-        if (remember) localStorage.setItem('rq_remember', '1');
-        else localStorage.removeItem('rq_remember');
-        return true;
-      }
+      // Backend se connect hi nahi ho paya (server down/network issue) —
+      // koi bhi hardcoded backdoor password NAHI, seedha login fail hoga
+      console.error('Login request failed:', e);
       return false;
     }
   },
