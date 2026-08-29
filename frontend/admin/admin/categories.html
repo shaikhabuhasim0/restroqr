@@ -12,13 +12,39 @@
 <script>
 Auth.guard();
 let editCatId = null;
+let _allCats = [];
+let _flatMenu = [];
 const ICONS = ['🥗','🍛','🫓','🥤','🍮','🍚','🍔','🍕','🍜','🥩','🦐','🧆','🧇','🥞','🍰','☕','🍷','🧃','🥘','🫕'];
 const COLORS = ['#e8f5e9','#fff3e0','#fce4ec','#e3f2fd','#f3e5f5','#fffde7','#fbe9e7','#e0f2f1','#e8eaf6','#f9fbe7'];
 
-function render() {
-  const cats = DB.get('categories');
-  const menu = DB.get('menu');
-  const countMap = Object.fromEntries(cats.map(c => [c.id, menu.filter(m => m.category === c.id).length]));
+async function render() {
+  // Real backend se categories + menu items fetch karo
+  try {
+    const [catRes, menuRes] = await Promise.all([
+      fetch('/getCategories'),
+      fetch('/getMenu')
+    ]);
+    const catData = await catRes.json();
+    const menuData = await menuRes.json();
+    _allCats = catData.success ? catData.categories : [];
+
+    // /getMenu grouped-by-category object deta hai — flat list mein convert karo
+    _flatMenu = [];
+    if (menuData.success) {
+      for (let category in menuData.menu) {
+        menuData.menu[category].forEach(item => _flatMenu.push({ ...item, category }));
+      }
+    }
+  } catch (e) {
+    _allCats = [];
+    _flatMenu = [];
+  }
+
+  const cats = _allCats;
+  // Menu ka 'category' field free-text hai (dropdown se linked nahi), isliye naam se match karo, id se nahi
+  const countMap = Object.fromEntries(
+    cats.map(c => [c.id, _flatMenu.filter(m => (m.category||'').toLowerCase() === (c.name||'').toLowerCase()).length])
+  );
 
   const content = `
     <div class="section-header">
@@ -26,7 +52,8 @@ function render() {
       <button class="btn btn-primary" onclick="openAdd()">+ Add Category</button>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;">
-      ${cats.map(c => `
+      ${cats.length===0 ? `<div class="empty-state" style="grid-column:1/-1;"><span class="empty-icon">🏷️</span><p>No categories yet</p></div>` :
+      cats.map(c => `
         <div class="card" style="text-align:center;border-top:4px solid ${c.color||'#eee'};">
           <div style="font-size:2.5rem;margin-bottom:8px;">${c.icon||'🍽️'}</div>
           <div style="font-weight:700;font-size:1rem;margin-bottom:4px;">${c.name}</div>
@@ -70,7 +97,7 @@ function render() {
         </div>
       </div>
     </div>`;
-  buildPage('categories','Categories',content);
+  await buildPage('categories','Categories',content);
 }
 
 function openAdd() {
@@ -80,7 +107,7 @@ function openAdd() {
   openModal('catModal');
 }
 function openEdit(id) {
-  const c = DB.get('categories').find(c => c.id===id);
+  const c = _allCats.find(c => c.id===id);
   if (!c) return;
   editCatId = id;
   document.getElementById('catModalTitle').textContent = 'Edit Category';
@@ -89,31 +116,51 @@ function openEdit(id) {
   document.getElementById('cColor').value = c.color||COLORS[0];
   openModal('catModal');
 }
-function saveCat() {
+async function saveCat() {
   const name = document.getElementById('cName').value.trim();
   const icon = document.getElementById('cIcon').value;
   const color = document.getElementById('cColor').value;
   if (!name) { showToast('Name required','error'); return; }
-  const cats = DB.get('categories');
-  if (editCatId) {
-    const idx = cats.findIndex(c=>c.id===editCatId);
-    cats[idx] = {...cats[idx], name, icon, color};
-    showToast('Category updated!','success');
-  } else {
-    cats.push({ id:'cat'+uid(), name, icon, color });
-    showToast('Category added!','success');
+  try {
+    if (editCatId) {
+      const res = await fetch(`/editCategory/${editCatId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, icon, color })
+      });
+      const data = await res.json();
+      if (data.success) showToast('Category updated!','success');
+      else { showToast('❌ Update failed','error'); return; }
+    } else {
+      const res = await fetch('/addCategory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, icon, color })
+      });
+      const data = await res.json();
+      if (data.success) showToast('Category added!','success');
+      else { showToast('❌ Add failed','error'); return; }
+    }
+    closeModal('catModal');
+    render();
+  } catch (e) {
+    showToast('❌ Something went wrong','error');
   }
-  DB.set('categories',cats);
-  closeModal('catModal');
-  render();
 }
 function deleteCat(id) {
-  const menuCount = DB.get('menu').filter(m=>m.category===id).length;
+  const c = _allCats.find(c => c.id===id);
+  if (!c) return;
+  const menuCount = _flatMenu.filter(m => (m.category||'').toLowerCase() === (c.name||'').toLowerCase()).length;
   if (menuCount > 0) { showToast(`Cannot delete — ${menuCount} menu items use this category`,'error'); return; }
-  confirmDialog('Delete this category?', () => {
-    DB.set('categories', DB.get('categories').filter(c=>c.id!==id));
-    showToast('Deleted','warn');
-    render();
+  confirmDialog('Delete this category?', async () => {
+    try {
+      const res = await fetch(`/deleteCategory/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) { showToast('Deleted','warn'); render(); }
+      else showToast('❌ Delete failed','error');
+    } catch (e) {
+      showToast('❌ Delete failed','error');
+    }
   });
 }
 render();
