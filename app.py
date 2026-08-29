@@ -773,6 +773,26 @@ def change_admin_id():
     return jsonify({"success": True})
 
 
+@app.route("/resetAdminCredentials", methods=["POST"])
+def reset_admin_credentials():
+    # ⚠️ Temporary/one-time use route — real admin_users row ko 'admin'/'admin123'
+    # (bcrypt-hashed) pe set/reset kar deta hai, taaki hardcoded fallback hatane
+    # ke baad lockout na ho. Isse use karne ke baad Settings page se turant
+    # asli password change kar lena, aur phir chaho to ye route hata dena.
+    conn = get_db()
+    cursor = conn.cursor()
+    hashed = bcrypt.hashpw("admin123".encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    cursor.execute("SELECT * FROM admin_users LIMIT 1")
+    existing = cursor.fetchone()
+    if existing:
+        cursor.execute("UPDATE admin_users SET username=?, password=? WHERE username=?", ("admin", hashed, existing["username"]))
+    else:
+        cursor.execute("INSERT INTO admin_users (username, password) VALUES (?, ?)", ("admin", hashed))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "message": "Admin credentials reset to admin/admin123"})
+
+
 if __name__ == "__main__":
     print("🔥 Server running on http://127.0.0.1:5000")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
