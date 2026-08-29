@@ -50,6 +50,12 @@ def init_db():
         capacity INTEGER NOT NULL,
         status TEXT NOT NULL DEFAULT "available"
     )''')
+    for col_def in [('capacity', 'INTEGER DEFAULT 2'), ('status', 'TEXT DEFAULT "available"')]:
+        try:
+            conn.execute(f'ALTER TABLE tables ADD COLUMN {col_def[0]} {col_def[1]}')
+            conn.commit()
+        except:
+            pass
 
     conn.execute('''CREATE TABLE IF NOT EXISTS categories (
         id TEXT PRIMARY KEY,
@@ -57,6 +63,12 @@ def init_db():
         icon TEXT DEFAULT "",
         color TEXT DEFAULT ""
     )''')
+    for col_def in [('icon', 'TEXT DEFAULT ""'), ('color', 'TEXT DEFAULT ""')]:
+        try:
+            conn.execute(f'ALTER TABLE categories ADD COLUMN {col_def[0]} {col_def[1]}')
+            conn.commit()
+        except:
+            pass
 
     conn.execute('''CREATE TABLE IF NOT EXISTS customers (
         id TEXT PRIMARY KEY,
@@ -67,6 +79,21 @@ def init_db():
         total_spend REAL DEFAULT 0,
         joined TEXT DEFAULT ""
     )''')
+    # Safety: agar 'customers' table purane/adhure schema se pehle se ban chuki thi,
+    # to yahan missing columns explicitly add karo
+    for col_def in [
+        ('email', 'TEXT DEFAULT ""'),
+        ('phone', 'TEXT DEFAULT ""'),
+        ('visits', 'INTEGER DEFAULT 0'),
+        ('total_spend', 'REAL DEFAULT 0'),
+        ('joined', 'TEXT DEFAULT ""')
+    ]:
+        try:
+            conn.execute(f'ALTER TABLE customers ADD COLUMN {col_def[0]} {col_def[1]}')
+            conn.commit()
+            print(f"✅ customers.{col_def[0]} column added!")
+        except:
+            pass  # column already exists — ignore
 
     conn.execute('''CREATE TABLE IF NOT EXISTS coupons (
         id TEXT PRIMARY KEY,
@@ -77,6 +104,15 @@ def init_db():
         active INTEGER DEFAULT 1,
         usage_count INTEGER DEFAULT 0
     )''')
+    for col_def in [
+        ('type', 'TEXT DEFAULT "percent"'), ('expiry', 'TEXT DEFAULT ""'),
+        ('active', 'INTEGER DEFAULT 1'), ('usage_count', 'INTEGER DEFAULT 0')
+    ]:
+        try:
+            conn.execute(f'ALTER TABLE coupons ADD COLUMN {col_def[0]} {col_def[1]}')
+            conn.commit()
+        except:
+            pass
 
     conn.execute('''CREATE TABLE IF NOT EXISTS settings (
         id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -89,6 +125,16 @@ def init_db():
         close_time TEXT DEFAULT "23:00",
         currency TEXT DEFAULT "₹"
     )''')
+    for col_def in [
+        ('address', 'TEXT DEFAULT ""'), ('phone', 'TEXT DEFAULT ""'), ('gst', 'TEXT DEFAULT ""'),
+        ('logo', 'TEXT DEFAULT ""'), ('open_time', 'TEXT DEFAULT "10:00"'),
+        ('close_time', 'TEXT DEFAULT "23:00"'), ('currency', 'TEXT DEFAULT "₹"')
+    ]:
+        try:
+            conn.execute(f'ALTER TABLE settings ADD COLUMN {col_def[0]} {col_def[1]}')
+            conn.commit()
+        except:
+            pass
     # Ensure exactly one settings row always exists
     conn.execute('INSERT OR IGNORE INTO settings (id) VALUES (1)')
 
