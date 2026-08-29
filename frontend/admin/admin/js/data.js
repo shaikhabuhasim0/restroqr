@@ -163,4 +163,4 @@ const DB = {
 };
 
 // Auto-init on load
-DB.init();
+// DB.init(); 
