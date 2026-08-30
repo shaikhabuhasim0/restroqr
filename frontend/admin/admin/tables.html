@@ -66,7 +66,7 @@ async function render() {
             <div>${statusBadge(t.status)}</div>
           </div>
           <div id="qr-${t.id}" style="width:140px;height:140px;margin:0 auto 12px;border:2px solid var(--border);border-radius:8px;padding:6px;background:#fff;display:flex;align-items:center;justify-content:center;"></div>
-          <div style="font-size:.7rem;color:var(--text-muted);word-break:break-all;margin-bottom:10px;">${baseUrl}?table=${t.id}</div>
+          <div style="font-size:.7rem;color:var(--text-muted);word-break:break-all;margin-bottom:10px;">${baseUrl}?table=${t.number}</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">
             <button class="btn btn-sm btn-info" onclick="openEdit('${t.id}')">✏️</button>
             <button class="btn btn-sm btn-success" onclick="changeStatus('${t.id}','available')">✅</button>
@@ -125,7 +125,7 @@ async function render() {
     if (el && typeof QRCode !== 'undefined') {
       el.innerHTML = '';
       new QRCode(el, {
-        text: url + '?table=' + t.id,
+        text: url + '?table=' + t.number,
         width: 126, height: 126,
         colorDark: '#1a1208',
         colorLight: '#ffffff',
