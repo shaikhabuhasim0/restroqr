@@ -33,6 +33,59 @@ const STATUS_CONFIG = {
 };
 
 let _allOrders = [];
+let _knownOrderIds = null;   // null = not initialized yet (avoid alert on first load)
+let _originalTitle = document.title;
+let _titleFlashTimer = null;
+
+/* ── New order sound (Web Audio — no external file needed) ── */
+function playNewOrderSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const scheduleTones = () => {
+      const playTone = (freq, startTime, duration) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.25, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+      const now = ctx.currentTime;
+      playTone(880, now, 0.18);            // ding
+      playTone(1174.66, now + 0.15, 0.25); // dong (higher note, slight overlap)
+    };
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(scheduleTones);
+    } else {
+      scheduleTones();
+    }
+  } catch (e) {
+    console.warn('Could not play notification sound:', e);
+  }
+}
+
+/* ── Flash the browser tab title until admin looks at it ── */
+function flashNewOrderTitle(count) {
+  if (document.visibilityState === 'visible') return; // already looking, no need
+  clearInterval(_titleFlashTimer);
+  let on = false;
+  _titleFlashTimer = setInterval(() => {
+    document.title = on ? _originalTitle : `🔔 ${count} New Order${count > 1 ? 's' : ''}!`;
+    on = !on;
+  }, 1000);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    clearInterval(_titleFlashTimer);
+    document.title = _originalTitle;
+  }
+});
+
 function showOrderSkeleton() {
     buildPage("orders", "Orders", `
         <div class="orders-grid">
@@ -55,6 +108,19 @@ async function renderOrders(filter = 'all', search = '') {
     _allOrders = data.success ? data.orders : [];
   } catch (e) {
     _allOrders = [];
+  }
+
+  // ── Naya order aaya kya, check karo (sirf pehli load ke baad se) ──
+  const currentIds = new Set(_allOrders.map(o => o.id));
+  if (_knownOrderIds === null) {
+    _knownOrderIds = currentIds; // pehli baar — sirf baseline set karo, alert mat bajao
+  } else {
+    const newIds = [...currentIds].filter(id => !_knownOrderIds.has(id));
+    if (newIds.length > 0) {
+      playNewOrderSound();
+      flashNewOrderTitle(newIds.length);
+    }
+    _knownOrderIds = currentIds;
   }
 
   let orders = [..._allOrders].sort((a, b) => new Date(b.time) - new Date(a.time));
