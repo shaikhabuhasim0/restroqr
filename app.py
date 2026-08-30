@@ -410,7 +410,7 @@ def place_order():
                 json.dumps(data.get("items")),
                 total,
                 "Pending",
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                datetime.utcnow().isoformat() + "Z",
                 customer_name,
                 customer_phone
             )
