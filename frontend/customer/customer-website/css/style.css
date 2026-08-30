@@ -969,7 +969,8 @@ h3 { font-size: clamp(1.1rem, 2.5vw, 1.4rem); }
   .waiter-btns { flex-direction: column; }
 }
 @media (max-width: 480px) {
-  .menu-grid { grid-template-columns: 1fr; }
+  .menu-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .menu-card-img { height: 110px; }
   .features-grid { grid-template-columns: 1fr; }
   .cart-actions { flex-direction: column; }
   .status-card { padding: 22px 14px; }
