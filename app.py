@@ -57,6 +57,40 @@ def init_db():
         except:
             pass
 
+    # ── Safe one-time repair: agar 'tables' table purani/alag schema mein ban gayi thi
+    # (jaise 'table_number'/'qr_code' columns ke saath, 'number' column ke bina),
+    # to use sahi schema mein migrate karo bina data khoye ──
+    try:
+        info_cursor = conn.cursor()
+        info_cursor.execute("PRAGMA table_info(tables)")
+        cols_info = info_cursor.fetchall()
+        col_names = [c["name"] for c in cols_info]
+        id_col = next((c for c in cols_info if c["name"] == "id"), None)
+        needs_migration = ("number" not in col_names) or (id_col and id_col["type"].upper() != "TEXT")
+        if needs_migration:
+            conn.execute("ALTER TABLE tables RENAME TO tables_legacy_backup")
+            conn.commit()
+            conn.execute('''CREATE TABLE tables (
+                id TEXT PRIMARY KEY,
+                number TEXT NOT NULL,
+                capacity INTEGER NOT NULL DEFAULT 2,
+                status TEXT NOT NULL DEFAULT "available"
+            )''')
+            try:
+                info_cursor.execute("PRAGMA table_info(tables_legacy_backup)")
+                legacy_cols = [c["name"] for c in info_cursor.fetchall()]
+                num_col = "table_number" if "table_number" in legacy_cols else ("number" if "number" in legacy_cols else None)
+                if num_col:
+                    conn.execute(f'''INSERT INTO tables (id, number, capacity, status)
+                        SELECT 'T' || CAST(id AS TEXT), CAST({num_col} AS TEXT), 2, 'available'
+                        FROM tables_legacy_backup''')
+                    conn.commit()
+            except Exception as mig_err:
+                print("ℹ️ No old table rows to migrate:", mig_err)
+            print("✅ Fixed 'tables' schema (was missing 'number' column) — old data safely migrated")
+    except Exception as e:
+        print("⚠️ Tables schema check skipped:", e)
+
     conn.execute('''CREATE TABLE IF NOT EXISTS categories (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
